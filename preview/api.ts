@@ -13,6 +13,8 @@ import {
   scheduleSchema,
   accountSchema,
   feesSchema,
+  formFieldSchema,
+  navItemSchema,
 } from "../server/domain.mjs";
 import { clearPreviewData } from "./shims/fs-promises";
 import { randomBytes } from "./shims/crypto";
@@ -80,12 +82,13 @@ function validateMutation(action: string, data: unknown) {
   if (action === "section.save") return sectionSchema.parse(data);
   if (action === "schedule.save") return scheduleSchema.parse(data);
   if (action === "account.save") return accountSchema.parse(data);
+  if (action === "formField.save") return formFieldSchema.parse(data);
   if (action === "participant.save")
     return z
       .object({
         id: idSchema,
         participant: participantSchema,
-        food: z.enum(["সাধারণ", "নিরামিষ", "বিশেষ অনুরোধ"]),
+        food: z.enum(["সাধারণ", "নিরামিষ", "বিশেষ অনুরোধ", ""]).optional().default(""),
         notes: z.string().max(600).default(""),
         spouse: z.coerce.number().int().min(0).max(1),
         children: z.coerce.number().int().min(0).max(20),
@@ -105,9 +108,37 @@ function validateMutation(action: string, data: unknown) {
     return z
       .object({ id: idSchema, status: z.enum(["approved", "revoked"]) })
       .parse(data);
+  if (action === "navItem.save") return navItemSchema.parse(data);
+  if (action === "navItem.delete") return z.object({ id: idSchema }).parse(data);
+  if (action === "formText.save")
+    return z
+      .object({
+        key: z.string().trim().regex(/^[a-z][a-z0-9_.]{2,40}$/),
+        value: z.string().trim().max(400).default(""),
+      })
+      .parse(data);
+  if (action === "formField.reorder" || action === "navItem.reorder")
+    return z
+      .object({
+        items: z
+          .array(
+            z.object({
+              id: idSchema,
+              order: z.coerce.number().int().min(0).max(999),
+            }),
+          )
+          .min(1)
+          .max(60),
+      })
+      .parse(data);
+  if (action === "formField.move")
+    return z
+      .object({ id: idSchema, order: z.coerce.number().int().min(0).max(999) })
+      .parse(data);
   if (
     [
       "section.delete",
+      "formField.delete",
       "schedule.delete",
       "account.delete",
       "registration.remove",
@@ -127,6 +158,14 @@ async function route(
 ): Promise<Result> {
   await initDemo();
   if (path === "/site") return { status: 200, data: await demo.site() };
+
+  if (path === "/photo" && method === "POST") {
+    // অফলাইন প্রিভিউ: কিছুই আপলোড হয় না — ছবিটাই ডেটা আকারে থেকে যায়
+    const { photo } = z.object({ photo: z.string().min(64).max(2_600_000) }).parse(body);
+    if (!/^data:image\/(jpeg|jpg|png|webp);base64,/.test(photo))
+      throw new AppError("ছবির ধরন সঠিক নয় — JPG, PNG বা WebP দিন।", 400);
+    return { status: 200, data: { url: photo, demo: true } };
+  }
 
   if (path === "/registrations" && method === "POST")
     return {
@@ -172,6 +211,12 @@ async function route(
         : null,
     };
   }
+
+  if (path === "/notify-status")
+    return {
+      status: 200,
+      data: { configured: false, provider: "", to: "", quickLogin: false },
+    };
 
   if (path === "/admin")
     return { status: 200, data: await demo.overview(requireUser()) };

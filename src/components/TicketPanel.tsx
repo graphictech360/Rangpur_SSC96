@@ -2,20 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { toPng } from "html-to-image";
 import {
-  Ticket,
-  Search,
-  RefreshCw,
-  Download,
-  Printer,
-  Copy,
-  LockKeyhole,
+  AlertTriangle,
+  CalendarDays,
   Check,
   Clock3,
-  AlertTriangle,
-  MapPin,
-  CalendarDays,
-  Users,
+  Copy,
+  Download,
   Loader2,
+  LockKeyhole,
+  MapPin,
+  Phone,
+  Printer,
+  RefreshCw,
+  Search,
+  Ticket,
+  Users,
 } from "lucide-react";
 import type { Registration, Site } from "../types";
 import {
@@ -132,9 +133,23 @@ export default function TicketPanel({
             <Ticket size={28} />
           </div>
           <h3>তোমার টিকিটের খোঁজ</h3>
-          <p>
-            নিবন্ধনের পর পাওয়া গোপন লিংক বা রিকভারি কোড দাও। এই ব্রাউজারে
-            নিবন্ধন করলে টিকিট স্বয়ংক্রিয়ভাবে দেখাবে।
+          <ol className="ticket-find-steps">
+            <li>
+              <b>নিবন্ধন শেষ হওয়ামাত্র</b> স্ক্রিনে <b>গোপন লিংক</b> ও{" "}
+              <b>রিকভারি কোড</b> দেখানো হয় — কপি বা স্ক্রিনশট নিয়ে রাখো।
+            </li>
+            <li>
+              <b>এই ব্রাউজারে</b> আবার এলে “আমার টিকিট”-এ নিজে থেকেই খুলে যাবে;
+              নিচের তালিকাতেও পাবে।
+            </li>
+            <li>
+              <b>হারিয়ে গেলে</b> আয়োজককে (নিচের নম্বরে) মোবাইল ও TrxID জানাও —
+              নতুন গোপন লিংক দেবেন, পুরোনোটা বাতিল হবে।
+            </li>
+          </ol>
+          <p className="ticket-privacy-note">
+            🔒 একটি লিংক/কোড শুধুই একজন বন্ধুর টিকিট খোলে — অন্য কারও নিবন্ধন,
+            ফোন নম্বর বা ছবি কেউ দেখতে পারে না। লিংকটি কারও সাথে শেয়ার করো না।
           </p>
         </div>
       )}
@@ -264,8 +279,36 @@ export default function TicketPanel({
                 </div>
                 <div className="ticket-receipt-main">
                   <span className="receipt-label">তোমার উৎসবের টিকিট</span>
-                  <h2>{registration.participant.name}</h2>
-                  <p>{registration.participant.school}</p>
+                  <div
+                    className="receipt-holder"
+                    data-initial={registration.participant.name.charAt(0)}
+                  >
+                    {registration.participant.photoUrl ? (
+                      <img
+                        className="receipt-photo"
+                        src={registration.participant.photoUrl}
+                        onError={(e) => {
+                          const el = e.currentTarget;
+                          el.style.display = "none";
+                          el.parentElement?.classList.add("photo-broken");
+                        }}
+                        alt={registration.participant.name}
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <span className="receipt-photo fallback">
+                        {registration.participant.name.charAt(0)}
+                      </span>
+                    )}
+                    <div className="receipt-holder-data">
+                      <h2>{registration.participant.name}</h2>
+                      <p>{registration.participant.school}</p>
+                      <span className="receipt-mobile">
+                        <Phone size={15} />
+                        {bn(registration.participant.mobile)}
+                      </span>
+                    </div>
+                  </div>
                   <div className="receipt-event">
                     <span>
                       <CalendarDays size={16} />
@@ -292,8 +335,27 @@ export default function TicketPanel({
                         {bn(registration.children)}
                       </p>
                       <div className="receipt-fine-details">
+                        <span>এসএসসি রোল: {bn(registration.participant.sscRoll)}</span>
+                        {registration.participant.sscRegistration ? (
+                          <span>
+                            রেজিস্ট্রেশন: {bn(registration.participant.sscRegistration)}
+                          </span>
+                        ) : null}
+                        <span>বর্তমান অবস্থান: {registration.participant.location}</span>
+                        <span>মোবাইল: {bn(registration.participant.mobile)}</span>
                         <span>টি-শার্ট: {registration.participant.tshirt}</span>
-                        <span>খাবার: {registration.food}</span>
+                        {registration.food && (
+                          <span>খাবার: {registration.food}</span>
+                        )}
+                        {Object.entries(registration.answers || {})
+                          .filter(([, v]) => String(v || "").trim() !== "")
+                          .map(([k, v]) => (
+                            <span key={k}>
+                              {(site.formFields || []).find((f) => f.key === k)
+                                ?.label || k}
+                              : {v}
+                            </span>
+                          ))}
                         <span>
                           {registration.payment.provider === "bkash"
                             ? "bKash"

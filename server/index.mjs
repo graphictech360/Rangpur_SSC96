@@ -14,6 +14,14 @@ import WebSocketImpl from "ws";
 import { z } from "zod";
 import { demo, initDemo } from "./demo-store.mjs";
 import {
+  notifyConfig,
+  notifyNewRegistration,
+  quickLoginUrl,
+  registrationEmail,
+  sendMail,
+  verifyQuickLoginToken,
+} from "./notify.mjs";
+import {
   AppError,
   registrationSchema,
   participantSchema,
@@ -21,6 +29,8 @@ import {
   sectionSchema,
   scheduleSchema,
   accountSchema,
+  formFieldSchema,
+  navItemSchema,
   feesSchema,
 } from "./domain.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -98,6 +108,62 @@ async function rpc(name, args = {}, user) {
     );
   return data;
 }
+// ── ছবি: যাচাই + Supabase Storage-এ তোলা (Vercel-এ ফাইল রাখা যায় না, তাই Storage) ──
+const PHOTO_MAX_BYTES = 1_200_000; // ~১.২ MB (ব্রাউজারে ছোট করা হয়, তারপরও যাচাই)
+const PHOTO_TYPES = {
+  jpeg: { mime: "image/jpeg", ext: "jpg", magic: [0xff, 0xd8, 0xff] },
+  jpg: { mime: "image/jpeg", ext: "jpg", magic: [0xff, 0xd8, 0xff] },
+  png: { mime: "image/png", ext: "png", magic: [0x89, 0x50, 0x4e, 0x47] },
+  webp: { mime: "image/webp", ext: "webp", magic: [0x52, 0x49, 0x46, 0x46] },
+};
+
+function decodePhoto(dataUrl) {
+  const match = /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(
+    String(dataUrl || "").trim(),
+  );
+  if (!match) throw new AppError("ছবির ধরন সঠিক নয় — JPG, PNG বা WebP দিন।", 400);
+  const type = PHOTO_TYPES[match[1]];
+  const buffer = Buffer.from(match[2], "base64");
+  if (!buffer.length) throw new AppError("ছবিটি খালি। আবার চেষ্টা করুন।", 400);
+  if (buffer.length > PHOTO_MAX_BYTES)
+    throw new AppError("ছবিটি খুব বড় (১.২ MB-এর কম দিন)।", 400);
+  if (!type.magic.every((b, i) => buffer[i] === b))
+    throw new AppError("ফাইলটি আসল ছবি মনে হচ্ছে না।", 400);
+  return { buffer, ...type };
+}
+
+const PHOTO_PREFIX = `${supabaseUrl}/storage/v1/object/public/photos/`;
+const isOurPhoto = (url) =>
+  typeof url === "string" && (url.startsWith(PHOTO_PREFIX) || url.startsWith("data:image/"));
+
+async function uploadPhoto(dataUrl, folder = "participants") {
+  const { buffer, mime, ext } = decodePhoto(dataUrl);
+  if (mode === "demo") {
+    // ডেমোতে কিছুই বাইরে পাঠানো হয় না — ছবিটাই ডেটা হিসেবে থাকে (অফলাইনেও চলে)
+    return { url: dataUrl, demo: true };
+  }
+  const day = new Date().toISOString().slice(0, 10);
+  const path = `${folder}/${day}/${randomUUID()}.${ext}`;
+  const answer = await fetch(`${supabaseUrl}/storage/v1/object/photos/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": mime,
+      "x-upsert": "false",
+      "cache-control": "max-age=31536000",
+    },
+    body: buffer,
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!answer.ok)
+    throw new AppError(
+      "ছবি আপলোড করা যায়নি। internet ঠিক আছে কি না দেখে আবার চেষ্টা করুন।",
+      502,
+    );
+  return { url: `${PHOTO_PREFIX}${path}`, path };
+}
+
 const app = express();
 app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
 app.disable("x-powered-by");
@@ -171,6 +237,13 @@ const cookieOptions = (req) => {
     maxAge: 8 * 3600000,
   };
 };
+// রিডাইরেক্টের জন্য সাইটের ঠিকানা (লোকাল, প্রিভিউ ও লাইভ — সবখানেই কাজ করে)
+const siteUrlForRedirect = (req) => {
+  const fixed = (process.env.APP_ORIGIN || process.env.SITE_URL || "").trim();
+  if (fixed) return fixed.replace(/\/$/, "");
+  const proto = req.get("x-forwarded-proto") || (req.secure ? "https" : "http");
+  return `${proto}://${req.get("host")}`;
+};
 async function auth(req, res, required = false) {
   const raw = req.signedCookies.r96_session;
   let s = null;
@@ -220,6 +293,48 @@ const loginLimit = rateLimit({
   legacyHeaders: false,
   message: { error: "অনেকবার লগইনের চেষ্টা হয়েছে। ১০ মিনিট পরে চেষ্টা করুন।" },
 });
+// ── ছবি আপলোড: ব্রাউজার ছোট করে পাঠায়, সার্ভার যাচাই করে Supabase Storage-এ রাখে ──
+app.post(
+  "/api/photo",
+  express.json({ limit: "3mb" }),
+  publicLimit,
+  wrap(async (req, res) => {
+    const { photo } = z
+      .object({ photo: z.string().min(64).max(2_600_000) })
+      .parse(req.body);
+    res.json(await uploadPhoto(photo));
+  }),
+);
+// ── হেডারের লোগো বদল: শুধু অ্যাডমিন, এক চাপে আপলোড + সেভ ──
+app.post(
+  "/api/admin/logo",
+  express.json({ limit: "3mb" }),
+  wrap(async (req, res) => {
+    const user = await auth(req, res, true);
+    const { photo } = z
+      .object({ photo: z.string().min(64).max(2_600_000) })
+      .parse(req.body);
+    const uploaded = await uploadPhoto(photo, "branding");
+    // বিদ্যমান branding সেকশনের নাম/ছোট লেখা রেখে শুধু লোগো বদলানো হয়
+    const site = mode === "demo" ? await demo.site() : await rpc("public_site");
+    const current = (site.sections || []).find((x) => x.key === "branding") || {};
+    const payload = {
+      id: current.id,
+      key: "branding",
+      title: current.title || "RANGPUR SSC 96",
+      subtitle: current.subtitle || "",
+      body: current.body || "",
+      imageUrl: uploaded.url,
+      order: current.order ?? 10,
+      visible: true,
+    };
+    const result =
+      mode === "demo"
+        ? await demo.mutate(user, "section.save", payload)
+        : await rpc("admin_mutate", { p_action: "section.save", p_payload: payload }, user);
+    res.json({ ...uploaded, section: result });
+  }),
+);
 app.get(
   "/api/site",
   wrap(async (_, res) => {
@@ -232,10 +347,59 @@ app.post(
   publicLimit,
   wrap(async (req, res) => {
     const input = registrationSchema.parse(req.body);
+    // অ্যাডমিন কোন ঘর বাধ্যতামূলক রেখেছেন / লুকিয়ে দিয়েছেন — সেটিই নিয়ম
+    {
+      const cfg =
+        mode === "demo" ? await demo.site() : await rpc("public_site");
+      const values = {
+        name: input.participant.name,
+        school: input.participant.school,
+        ssc_roll: input.participant.sscRoll,
+        ssc_registration: input.participant.sscRegistration,
+        mobile: input.participant.mobile,
+        location: input.participant.location,
+        photo: input.participant.photoUrl,
+        tshirt: input.participant.tshirt,
+        family: "1",
+      };
+      for (const f of cfg.formFields || []) {
+        if (!f.required || f.visible === false) continue;
+        const value = f.isBase
+          ? values[f.key]
+          : input.answers?.[f.key];
+        if (!String(value ?? "").trim())
+          throw new AppError(`ঘরটি পূরণ করুন: ${f.label}`, 400);
+      }
+    }
+    // ছবিটি সত্যিই আমাদের Storage থেকে এসেছে কি না (নকল লিংক ঠেকাতে)
+    if (input.participant.photoUrl && !isOurPhoto(input.participant.photoUrl))
+      throw new AppError("ছবির লিংক সঠিক নয়। আবার আপলোড করুন।", 400);
+    if (mode !== "demo" && input.participant.photoUrl && input.participant.photoUrl.startsWith("data:"))
+      throw new AppError("অনলাইন মোডে ছবি আপলোড করে নিন।", 400);
     const data =
       mode === "demo"
         ? await demo.register(input)
         : await rpc("submit_registration", { p_data: input });
+    // নিবন্ধন জমা হয়ে গেছে — এখন আয়োজকের ইমেইলে খবর। মেইল ব্যর্থ হলেও
+    // নিবন্ধন আগেই সফল, তাই এখানে কিছুই থামানো হয় না (সর্বোচ্চ ৮ সেকেন্ড)।
+    try {
+      // মেইলে অতিরিক্ত ঘরগুলোর বাংলা নাম দেখানোর জন্য ঘরের তালিকা জুড়ে দিই
+      let fields = [];
+      try {
+        const site =
+          mode === "demo" ? await demo.site() : await rpc("public_site");
+        fields = site?.formFields || [];
+      } catch {
+        fields = [];
+      }
+      const sent = await notifyNewRegistration({
+        registration: { ...data?.registration, fields },
+        registrationId: data?.registration?.id,
+      });
+      if (sent?.ok) console.log("[notify] নিবন্ধনের খবর পাঠানো হলো:", sent.subject);
+    } catch (e) {
+      console.error("[notify] খবর পাঠাতে সমস্যা:", e?.message || e);
+    }
     res.status(201).json(data);
   }),
 );
@@ -301,6 +465,76 @@ app.post(
     });
   }),
 );
+// ── মেইলের বোতাম: এক ক্লিকে প্যানেল ─────────────────────────────
+// লিংকে ৬০ মিনিটের সই-করা টোকেন থাকে; সার্ভার নিজেই লগইন করে কুকি বসায়।
+app.get(
+  "/api/quick-login",
+  wrap(async (req, res) => {
+    const back = `${siteUrlForRedirect(req)}/admin`;
+    let data = null;
+    try {
+      data = verifyQuickLoginToken(req.query.t);
+    } catch {
+      data = null;
+    }
+    if (!data) {
+      return res.redirect(302, `${back}?login=expired`);
+    }
+    const cfg = notifyConfig();
+    const email = (process.env.QUICK_LOGIN_EMAIL || "").trim().toLowerCase();
+    const password = (process.env.QUICK_LOGIN_PASSWORD || "").trim();
+    const demoMode = mode === "demo";
+    const demoEmail = "admin@ssc96.demo";
+    const demoPass = "Festival96!";
+    const wanted = demoMode ? demoEmail : email;
+    if (!wanted || data.e !== wanted.toLowerCase() || (!demoMode && !password)) {
+      // এক-ক্লিক চালু করা নেই — লগইন পেজে পাঠিয়ে দিই (ইমেইল আগেই বসানো)
+      return res.redirect(
+        302,
+        `${back}?login=1&email=${encodeURIComponent(data.e)}`,
+      );
+    }
+    let user;
+    if (demoMode) {
+      user = { id: "demo-admin", name: "ডেমো আয়োজক", email: demoEmail, role: "admin" };
+    } else {
+      const { data: auth, error } = await makeClient().auth.signInWithPassword({
+        email: wanted,
+        password,
+      });
+      if (error || !auth.session) {
+        console.error("[quick-login] লগইন হলো না:", error?.message);
+        return res.redirect(302, `${back}?login=failed`);
+      }
+      user = {
+        id: auth.user.id,
+        email: wanted,
+        accessToken: auth.session.access_token,
+        refreshToken: auth.session.refresh_token,
+        tokenExpiry: auth.session.expires_at * 1000,
+      };
+      try {
+        const identity = await rpc("staff_identity", {}, user);
+        user = { ...user, ...identity };
+      } catch (e) {
+        console.error("[quick-login] ভূমিকা পড়া যায়নি:", e?.message || e);
+      }
+    }
+    res.cookie("r96_session", packSession(user), cookieOptions(req));
+    try {
+      // লগইনের হিসাব রেখে দিই (প্যানেলের লগে দেখা যাবে)
+      await rpc("log_login", {
+        p_email: wanted,
+        p_ok: true,
+        p_note: "ইমেইল লিংক থেকে এক ক্লিকে",
+      });
+    } catch (e) {
+      console.error("[quick-login] লগ রাখা যায়নি:", e?.message || e);
+    }
+    return res.redirect(302, `${back}?welcome=1`);
+  }),
+);
+
 app.post(
   "/api/password-reset",
   loginLimit,
@@ -394,6 +628,69 @@ app.get(
     });
   }),
 );
+// প্যানেলের হেডারে দেখানোর জন্য: মেইল-খবর চালু কি না
+app.get(
+  "/api/notify-status",
+  wrap(async (req, res) => {
+    await auth(req, res, true);
+    const cfg = notifyConfig();
+    res.json({
+      configured: cfg.configured,
+      provider: cfg.provider,
+      to: cfg.to,
+      quickLogin: cfg.quickLogin,
+    });
+  }),
+);
+// ── প্যানেল থেকে “পরীক্ষা মেইল” — সত্যিই পাঠিয়ে ফল জানায় ─────────
+app.post(
+  "/api/notify-test",
+  loginLimit,
+  wrap(async (req, res) => {
+    await auth(req, res, true);
+    const cfg = notifyConfig();
+    if (!cfg.configured)
+      throw new AppError(
+        "ইমেইল এখনো চালু করা হয়নি। Vercel-এ RESEND_API_KEY বসান (docs/NOTIFICATION.bn.md)।",
+        400,
+      );
+    const mail = registrationEmail({
+      registration: {
+        total: 2199,
+        spouse: 1,
+        children: 1,
+        food: "সাধারণ",
+        ticketNumber: "R96-TEST",
+        participant: {
+          name: "পরীক্ষামূলক বন্ধু",
+          school: "রংপুর জিলা স্কুল",
+          sscRoll: "96001",
+          mobile: "01700000000",
+          location: "রংপুর",
+          tshirt: "L",
+        },
+        payment: {
+          provider: "bkash",
+          senderMobile: "01700000000",
+          transactionId: "TEST-TRX-96",
+          amount: 2199,
+          collectorName: "Tomal",
+          collectorMobile: "+8801773539721",
+        },
+      },
+      registrationId: "notify-test",
+    });
+    const result = await sendMail(mail);
+    if (!result.ok)
+      throw new AppError(
+        `পরীক্ষা মেইল পাঠানো যায়নি (${result.provider || "কোনো মাধ্যম নেই"}${
+          result.status ? " · HTTP " + result.status : ""
+        })। ${String(result.detail || result.reason || "").slice(0, 200)}`,
+        502,
+      );
+    res.json({ ...result, to: mail.to, subject: mail.subject });
+  }),
+);
 app.get(
   "/api/admin",
   wrap(async (req, res) => {
@@ -412,6 +709,35 @@ function validateMutation(action, data) {
   if (action === "section.save") return sectionSchema.parse(data);
   if (action === "schedule.save") return scheduleSchema.parse(data);
   if (action === "account.save") return accountSchema.parse(data);
+  if (action === "formField.save") return formFieldSchema.parse(data);
+  if (action === "formField.delete") return z.object({ id: idSchema }).parse(data);
+  if (action === "navItem.save") return navItemSchema.parse(data);
+  if (action === "navItem.delete") return z.object({ id: idSchema }).parse(data);
+  if (action === "formText.save")
+    return z
+      .object({
+        key: z.string().trim().regex(/^[a-z][a-z0-9_.]{2,40}$/),
+        value: z.string().trim().max(400).default(""),
+      })
+      .parse(data);
+  if (action === "formField.reorder" || action === "navItem.reorder")
+    return z
+      .object({
+        items: z
+          .array(
+            z.object({
+              id: idSchema,
+              order: z.coerce.number().int().min(0).max(999),
+            }),
+          )
+          .min(1)
+          .max(60),
+      })
+      .parse(data);
+  if (action === "formField.move")
+    return z
+      .object({ id: idSchema, order: z.coerce.number().int().min(0).max(999) })
+      .parse(data);
   if (action === "participant.save")
     return z
       .object({

@@ -13,6 +13,111 @@ export async function api<T>(
   if (!response.ok) throw new Error(data.error || "অনুরোধ সম্পন্ন হয়নি।");
   return data;
 }
+/** ছবি আপলোডের নির্দিষ্ট মাপ — স্টোরেজ ভরে যাওয়া ঠেকাতে সব ছবি এই একই মাপে জমা হয় */
+export const PHOTO_SIZE = 512; // ৫১২×৫১২ পিক্সেল (বর্গাকার, প্রোফাইল ছবির মতো)
+export const PHOTO_QUALITY = 0.72; // JPEG গুণমান — সাধারণত ৪০–৯০ KB হয়
+export const PHOTO_MAX_UPLOAD = 25 * 1024 * 1024; // ব্যবহারকারী সর্বোচ্চ ২৫ MB-এর ছবি দিতে পারবেন
+
+/** যেকোনো সাইজ/ধরনের ছবি নিয়ে ঠিক ৫১২×৫১২ স্কয়ার JPEG (data URI) বানায় — কেউ বড় ফাইল দিলেও জমা হবে ছোট */
+export async function shrinkPhoto(file: File): Promise<string> {
+  if (!file.type.startsWith("image/"))
+    throw new Error("শুধু ছবি (JPG/PNG/WebP) দিতে পারবেন।");
+  if (file.size > PHOTO_MAX_UPLOAD)
+    throw new Error("ছবিটি ২৫ MB-এর চেয়ে বড়। ছোট ছবি দিয়ে আবার চেষ্টা করুন।");
+  let source: ImageBitmap | HTMLImageElement;
+  try {
+    source = await createImageBitmap(file);
+  } catch {
+    source = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("ছবিটি পড়া যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।"));
+      };
+      img.src = url;
+    });
+  }
+  const width = "width" in source ? source.width : 0;
+  const height = "height" in source ? source.height : 0;
+  if (!width || !height)
+    throw new Error("ছবিটি পড়া যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।");
+  // কেন্দ্র থেকে বর্গাকার অংশ নিয়ে ঠিক ৫১২×৫১২-এ আঁকা হয় — চেহারা বিকৃত হয় না
+  const side = Math.min(width, height);
+  const canvas = document.createElement("canvas");
+  canvas.width = PHOTO_SIZE;
+  canvas.height = PHOTO_SIZE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("এই ব্রাউজারে ছবি ছোট করা যায় না।");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, PHOTO_SIZE, PHOTO_SIZE);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(
+    source,
+    (width - side) / 2,
+    (height - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    PHOTO_SIZE,
+    PHOTO_SIZE,
+  );
+  if ("close" in source) source.close();
+  const dataUrl = canvas.toDataURL("image/jpeg", PHOTO_QUALITY);
+  if (!/^data:image\/jpeg;base64,/.test(dataUrl) || dataUrl.length < 200)
+    throw new Error("ছবিটি প্রস্তুত করা যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।");
+  return dataUrl;
+}
+// হেডারের লোগো: অনুপাত নষ্ট না করে সর্বোচ্চ ৫১২ পিক্সেল চওড়ায় আনা হয়
+export async function shrinkLogo(file: File): Promise<string> {
+  if (!file.type.startsWith("image/"))
+    throw new Error("শুধু ছবি (JPG/PNG/WebP/SVG থেকে বানানো ছবি) দিতে পারবেন।");
+  if (file.size > PHOTO_MAX_UPLOAD)
+    throw new Error("ছবিটি ২৫ MB-এর চেয়ে বড়। ছোট ছবি দিয়ে আবার চেষ্টা করুন।");
+  let source: ImageBitmap | HTMLImageElement;
+  try {
+    source = await createImageBitmap(file);
+  } catch {
+    source = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("ছবিটি পড়া যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।"));
+      };
+      img.src = url;
+    });
+  }
+  const width = "width" in source ? source.width : 0;
+  const height = "height" in source ? source.height : 0;
+  if (!width || !height)
+    throw new Error("ছবিটি পড়া যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।");
+  const scale = Math.min(1, 512 / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("এই ব্রাউজারে ছবি ছোট করা যায় না।");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  if ("close" in source) source.close();
+  const dataUrl = canvas.toDataURL("image/jpeg", PHOTO_QUALITY);
+  if (!/^data:image\/jpeg;base64,/.test(dataUrl) || dataUrl.length < 200)
+    throw new Error("ছবিটি প্রস্তুত করা যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।");
+  return dataUrl;
+}
+
 export const post = <T>(path: string, body: unknown) =>
   api<T>(path, { method: "POST", body: JSON.stringify(body) });
 export const mutate = <T = { ok: boolean }>(action: string, payload: unknown) =>
@@ -140,6 +245,7 @@ export function downloadCsv(registrations: Registration[]) {
       "Spouse",
       "Children",
       "Food",
+      "Extra Answers",
       "Amount",
       "Status",
       "Provider",
@@ -162,6 +268,10 @@ export function downloadCsv(registrations: Registration[]) {
       r.spouse,
       r.children,
       r.food,
+      Object.entries(r.answers || {})
+        .filter(([, v]) => String(v || "").trim() !== "")
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" | "),
       r.total,
       r.status,
       r.payment.provider,

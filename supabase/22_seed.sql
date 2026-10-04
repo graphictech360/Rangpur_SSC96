@@ -6,23 +6,30 @@
 -- ২৫টি টেবিলের বর্ণনা এবং ১৬টি কার্য-প্রবাহ (action → reaction)।
 -- ═══════════════════════════════════════════════════════════════════
 BEGIN;
-SET search_path = pg_catalog, public;
+SET search_path = public, pg_catalog;
 
--- ── ১. কোন স্কিমা কী কাজে ─────────────────────────────────────────
-INSERT INTO database.schemas(name, section_bn, purpose_bn, sort_order) VALUES
- ('database', 'ডেটাবেস সেকশন', 'ডেটাবেস-স্তরের হিসাব: স্কিমা-তালিকা, সেটিংস, মাইগ্রেশন ও স্বাস্থ্য-ভিউ।', 1),
- ('admin', 'অ্যাডমিন সেকশন', 'অ্যাডমিন টেবিল, লগইন-হিসাব, পাসওয়ার্ড রিসেট, ইমেইল-আউটবক্স, অনুমোদিত ফোন ও অডিট-লগ।', 2),
- ('event', 'অনুষ্ঠান সেকশন', 'অনুষ্ঠানের পরিচয়, ফি-র হার ও প্রকাশ্য যোগাযোগ নম্বর।', 3),
- ('content', 'পেজের লেখা ও ছবি', 'ওয়েবসাইটের ১৩টি সেকশন ও ১৪ ধাপের সময়সূচি।', 4),
- ('registration', 'বন্ধু ও নিবন্ধন সেকশন', 'অংশগ্রহণকারী, নিবন্ধন ও গোপন টিকিট-লিংক।', 5),
- ('payment', 'পেমেন্ট সেকশন', 'Send Money নম্বর, প্রতি নিবন্ধনের পেমেন্ট রেকর্ড ও রিফান্ড।', 6),
- ('gate', 'গেট সেকশন', 'QR টিকিট ও দরজার চেক-ইন।', 7),
- ('report', 'রিপোর্ট সেকশন', 'হিসাবের ভিউ: মোট, স্কুলভিত্তিক, দিনভিত্তিক, উপস্থিতি, রিফান্ড ও সাইজ/খাবার।', 8),
- ('guide', 'গঠন-বর্ণনা', 'কোন টেবিল কী কাজে, কার সাথে সম্পর্ক, কোন কাজে কী ঘটে।', 9)
+-- ── ১. কোন সেকশন (নামের শুরু) কী কাজে ───────────────────────────
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+-- প্রতিটি সারি = Table Editor-এ নামের শুরুর অংশ (prefix)
+INSERT INTO database_schemas(name, section_bn, purpose_bn, sort_order) VALUES
+ ('database', 'ডেটাবেস সেকশন', 'database_* — ডেটাবেস-স্তরের হিসাব: সেকশন-তালিকা, সেটিংস, মাইগ্রেশন ও স্বাস্থ্য-ভিউ।', 1),
+ ('admin', 'অ্যাডমিন সেকশন', 'admin_* — অ্যাডমিন টেবিল, লগইন-হিসাব, পাসওয়ার্ড রিসেট, ইমেইল-আউটবক্স, অনুমোদিত ফোন ও অডিট-লগ।', 2),
+ ('event', 'অনুষ্ঠান সেকশন', 'event_* — অনুষ্ঠানের পরিচয়, ফি-র হার ও প্রকাশ্য যোগাযোগ নম্বর।', 3),
+ ('content', 'পেজের লেখা ও ছবি', 'content_* — ওয়েবসাইটের ১৩টি সেকশন ও ১৪ ধাপের সময়সূচি।', 4),
+ ('user', 'ব্যবহারকারী (বন্ধু) ও নিবন্ধন সেকশন', 'participants · registrations · user_links — অংশগ্রহণকারী, নিবন্ধন ও গোপন টিকিট-লিংক (আপনার "user" সেকশন)।', 5),
+ ('payment', 'পেমেন্ট সেকশন', 'payments · payment_accounts · refunds — Send Money নম্বর, প্রতি নিবন্ধনের পেমেন্ট রেকর্ড ও রিফান্ড।', 6),
+ ('gate', 'গেট সেকশন', 'gate_* — QR টিকিট ও দরজার চেক-ইন।', 7),
+ ('report', 'রিপোর্ট সেকশন', 'report_* — হিসাবের ভিউ: মোট, স্কুলভিত্তিক, দিনভিত্তিক, উপস্থিতি, রিফান্ড ও সাইজ/খাবার।', 8),
+ ('guide', 'গঠন-বর্ণনা', 'guide_* — কোন টেবিল কী কাজে, কার সাথে সম্পর্ক, কোন কাজে কী ঘটে।', 9)
 ON CONFLICT (name) DO UPDATE SET section_bn = excluded.section_bn, purpose_bn = excluded.purpose_bn, sort_order = excluded.sort_order;
 
 -- ── ২. অ্যাপের সেটিংস ─────────────────────────────────────────────
-INSERT INTO database.settings(key, value, note_bn) VALUES
+INSERT INTO database_settings(key, value, note_bn) VALUES
  ('app.refunds_enabled', 'true', 'রিফান্ডের সুবিধা চালু/বন্ধ — বন্ধ করলে বোতাম দেখাবে না।'),
  ('app.checkin_requires_device', 'true', 'চেক-ইনের জন্য অ্যাডমিন-অনুমোদিত ফোন বাধ্যতামূলক।'),
  ('app.public_signup_closed', 'true', 'Supabase Auth-এ নতুন অ্যাকাউন্ট খোলা বন্ধ — শুধু আয়োজক ঢুকতে পারেন।'),
@@ -30,11 +37,11 @@ INSERT INTO database.settings(key, value, note_bn) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ── ৩. কোন ধাপ কখন চলল ────────────────────────────────────────────
-INSERT INTO database.migrations(version, name_bn, note) VALUES
+INSERT INTO database_migrations(version, name_bn, note) VALUES
  ('10_database', 'database স্কিমা: সেটিংস, মাইগ্রেশন, স্বাস্থ্য', 'ডেটাবেস সেকশন'),
  ('11_event', 'event স্কিমা: অনুষ্ঠান, ফি, যোগাযোগ', 'অনুষ্ঠান সেকশন'),
  ('12_content', 'content স্কিমা: ১৩ সেকশন ও ১৪ সময়সূচি', 'পেজের লেখা'),
- ('13_registration', 'registration স্কিমা: অংশগ্রহণকারী, নিবন্ধন, গোপন লিংক', 'বন্ধু ও নিবন্ধন'),
+ ('13_user', 'user স্কিমা: অংশগ্রহণকারী, নিবন্ধন, গোপন লিংক', 'বন্ধু ও নিবন্ধন'),
  ('14_payment', 'payment স্কিমা: Send Money নম্বর, পেমেন্ট, রিফান্ড', 'পেমেন্ট সেকশন'),
  ('15_admin', 'admin স্কিমা: অ্যাডমিন টেবিল, লগইন, রিসেট, ডিভাইস, অডিট', 'অ্যাডমিন সেকশন'),
  ('16_gate', 'gate স্কিমা: QR টিকিট ও চেক-ইন', 'গেট সেকশন'),
@@ -46,14 +53,14 @@ INSERT INTO database.migrations(version, name_bn, note) VALUES
  ('22_seed', 'শুরুর ডেটা ও কার্য-প্রবাহ', 'নিরাপদে বারবার চালানো যায়')
 ON CONFLICT (version) DO NOTHING;
 
-INSERT INTO event.events(id,slug,name,tagline,date_label,is_dummy_date,venue,city,venue_english,registration_open) VALUES('05909aa7-d46a-4b83-a3f7-bd77b7352ce9','rangpur-ssc96','Rangpur SSC 96 Festival','পুরোনো বন্ধুত্ব, নতুন গল্প।','৩১ ডিসেম্বর',true,'ভিন্নজগৎ','রংপুর','Vinnojogot, Rangpur',true) ON CONFLICT(slug) DO NOTHING;
-INSERT INTO event.fees(event_id,kind,amount) SELECT id,'friend',1499 FROM event.events WHERE slug='rangpur-ssc96' ON CONFLICT(event_id,kind) DO NOTHING;
-INSERT INTO event.fees(event_id,kind,amount) SELECT id,'spouse',500 FROM event.events WHERE slug='rangpur-ssc96' ON CONFLICT(event_id,kind) DO NOTHING;
-INSERT INTO event.fees(event_id,kind,amount) SELECT id,'child',200 FROM event.events WHERE slug='rangpur-ssc96' ON CONFLICT(event_id,kind) DO NOTHING;
+INSERT INTO event_events(id,slug,name,tagline,date_label,is_dummy_date,venue,city,venue_english,registration_open) VALUES('05909aa7-d46a-4b83-a3f7-bd77b7352ce9','rangpur-ssc96','Rangpur SSC 96 Festival','পুরোনো বন্ধুত্ব, নতুন গল্প।','৩১ ডিসেম্বর',true,'ভিন্নজগৎ','রংপুর','Vinnojogot, Rangpur',true) ON CONFLICT(slug) DO NOTHING;
+INSERT INTO event_fees(event_id,kind,amount) SELECT id,'friend',1499 FROM event_events WHERE slug='rangpur-ssc96' ON CONFLICT(event_id,kind) DO NOTHING;
+INSERT INTO event_fees(event_id,kind,amount) SELECT id,'spouse',500 FROM event_events WHERE slug='rangpur-ssc96' ON CONFLICT(event_id,kind) DO NOTHING;
+INSERT INTO event_fees(event_id,kind,amount) SELECT id,'child',200 FROM event_events WHERE slug='rangpur-ssc96' ON CONFLICT(event_id,kind) DO NOTHING;
 
-INSERT INTO content.sections(event_id,id,section_key,title,subtitle,body,image_url,sort_order,is_visible)
+INSERT INTO content_sections(event_id,id,section_key,title,subtitle,body,image_url,sort_order,is_visible)
 SELECT e.id,x.id,x.section_key,x.title,x.subtitle,x.body,x.image_url,x.sort_order,x.is_visible
-FROM event.events e CROSS JOIN jsonb_to_recordset($seed$[
+FROM event_events e CROSS JOIN jsonb_to_recordset($seed$[
   {
     "id": "2546d24d-9565-4431-a914-5602f96df2f3",
     "section_key": "hero",
@@ -159,7 +166,7 @@ FROM event.events e CROSS JOIN jsonb_to_recordset($seed$[
     "section_key": "faq_02",
     "title": "টিকিট কোথায় পাব?",
     "subtitle": "",
-    "body": "এখানে এসএমএস পাঠানো হয় না। নিবন্ধনের পর পাওয়া গোপন লিংক কপি করে রাখো। একই ব্রাউজারে “আমার টিকিট” থেকেও স্ট্যাটাস দেখা যাবে। লিংক হারালে আয়োজকদের সাহায্য নাও।",
+    "body": "এখানে এসএমএস পাঠানো হয় না। নিবন্ধন শেষ হওয়ামাত্র স্ক্রিনে গোপন লিংক ও ৬৪ অক্ষরের রিকভারি কোড দেখানো হয় — কপি করে বা স্ক্রিনশট নিয়ে রাখো। একই ব্রাউজারে “আমার টিকিট” খুললে নিজে থেকেই দেখা যাবে। কোনোটাই না থাকলে আয়োজককে মোবাইল নম্বর ও TrxID জানাও — তিনি নতুন গোপন লিংক দেবেন, পুরোনোটা তখন বাতিল হয়ে যাবে।",
     "image_url": "",
     "sort_order": 10,
     "is_visible": true
@@ -187,9 +194,9 @@ FROM event.events e CROSS JOIN jsonb_to_recordset($seed$[
 ]$seed$::jsonb) AS x(id uuid,section_key text,title text,subtitle text,body text,image_url text,sort_order integer,is_visible boolean)
 WHERE e.slug='rangpur-ssc96' ON CONFLICT(event_id,section_key) DO NOTHING;
 
-INSERT INTO content.schedule(event_id,id,start_time,period,title,note,sort_order,is_visible)
+INSERT INTO content_schedule(event_id,id,start_time,period,title,note,sort_order,is_visible)
 SELECT e.id,x.id,x.start_time,x.period,x.title,x.note,x.sort_order,x.is_visible
-FROM event.events e CROSS JOIN jsonb_to_recordset($seed$[
+FROM event_events e CROSS JOIN jsonb_to_recordset($seed$[
   {
     "id": "1e46c95a-c902-4a60-a386-5d38ae01d483",
     "start_time": "09:00",
@@ -319,9 +326,9 @@ FROM event.events e CROSS JOIN jsonb_to_recordset($seed$[
 ]$seed$::jsonb) AS x(id uuid,start_time time,period text,title text,note text,sort_order integer,is_visible boolean)
 WHERE e.slug='rangpur-ssc96' ON CONFLICT(id) DO NOTHING;
 
-INSERT INTO payment.accounts(event_id,id,provider,collector_name,mobile,sort_order,is_active)
+INSERT INTO payment_accounts(event_id,id,provider,collector_name,mobile,sort_order,is_active)
 SELECT e.id,x.id,x.provider,x.collector_name,x.mobile,x.sort_order,x.is_active
-FROM event.events e CROSS JOIN jsonb_to_recordset($seed$[
+FROM event_events e CROSS JOIN jsonb_to_recordset($seed$[
   {
     "id": "465b03d1-c09c-49bb-a571-808782653269",
     "provider": "bkash",
@@ -391,25 +398,25 @@ WHERE e.slug='rangpur-ssc96' ON CONFLICT(id) DO NOTHING;
 
 
 -- ── ৫. প্রকাশ্য যোগাযোগ নম্বর (হেল্পলাইন) ─────────────────────────
-INSERT INTO event.contacts(event_id, label, mobile, note_bn, sort_order)
+INSERT INTO event_contacts(event_id, label, mobile, note_bn, sort_order)
 SELECT e.id, x.label, x.mobile, x.note_bn, x.sort_order
-FROM event.events e CROSS JOIN jsonb_to_recordset($contacts$[
+FROM event_events e CROSS JOIN jsonb_to_recordset($contacts$[
   {"label":"Tomol (আয়োজক)","mobile":"01773539721","note_bn":"টাকা পাঠানো ও যেকোনো প্রশ্নে","sort_order":1},
   {"label":"Mahatab (আয়োজক)","mobile":"01712836444","note_bn":"নিবন্ধন সহায়তা","sort_order":2},
   {"label":"Shohag (আয়োজক)","mobile":"01721764479","note_bn":"টিকিট ও চেক-ইন সংক্রান্ত","sort_order":3},
   {"label":"Arif (আয়োজক)","mobile":"01787898951","note_bn":"সাধারণ জিজ্ঞাসা","sort_order":4}
 ]$contacts$) AS x(label text, mobile text, note_bn text, sort_order integer)
-WHERE NOT EXISTS (SELECT 1 FROM event.contacts c WHERE c.event_id = e.id AND c.label = x.label);
+WHERE NOT EXISTS (SELECT 1 FROM event_contacts c WHERE c.event_id = e.id AND c.label = x.label);
 
 -- ═══════════════════════════════════════════════════════════════════
--- ২৪টি টেবিলের পরিচয় (ব্যাখ্যা)
+-- ২৪+ টেবিলের পরিচয় (ব্যাখ্যা)
 -- ═══════════════════════════════════════════════════════════════════
-INSERT INTO guide.tables(schema_name, table_name, purpose_bn, written_by, key_columns, sort_order)
+INSERT INTO guide_tables(schema_name, table_name, purpose_bn, written_by, key_columns, sort_order)
 SELECT x.schema_name, x.table_name, x.purpose_bn, x.written_by, x.key_columns, x.sort_order
 FROM jsonb_to_recordset($tables$[
  {
   "schema_name": "database",
-  "table_name": "schemas",
+  "table_name": "database_schemas",
   "purpose_bn": "কোন স্কিমা জীবনের কোন সেকশনের তথ্য রাখে তার ঠিকানা-তালিকা।",
   "written_by": "সেটআপ স্ক্রিপ্ট",
   "key_columns": "name, section_bn, purpose_bn",
@@ -417,7 +424,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "database",
-  "table_name": "settings",
+  "table_name": "database_settings",
   "purpose_bn": "অ্যাপের সমন্বয়-সেটিংস: রিফান্ড চালু/বন্ধ, চেক-ইনের শর্ত ইত্যাদি।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "key, value, note_bn",
@@ -425,7 +432,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "database",
-  "table_name": "migrations",
+  "table_name": "database_migrations",
   "purpose_bn": "কোন SQL ধাপ কখন চালানো হয়েছে তার হিসাব।",
   "written_by": "সেটআপ স্ক্রিপ্ট",
   "key_columns": "version, applied_at",
@@ -433,7 +440,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "admin",
-  "table_name": "admins",
+  "table_name": "admin_users",
   "purpose_bn": "অ্যাডমিন টেবিল — কে অ্যাডমিন, কে গেট স্টাফ, কতবার লগইন করেছে।",
   "written_by": "সেটআপ + লগইন হিসাব",
   "key_columns": "user_id, role, is_active, last_login_at",
@@ -441,7 +448,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "admin",
-  "table_name": "login_events",
+  "table_name": "admin_login_events",
   "purpose_bn": "প্রতিটি লগইনের হিসাব — সফল ও ব্যর্থ।",
   "written_by": "লগইন প্রক্রিয়া (RPC)",
   "key_columns": "email, succeeded, created_at",
@@ -449,7 +456,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "admin",
-  "table_name": "password_resets",
+  "table_name": "admin_password_resets",
   "purpose_bn": "পাসওয়ার্ড ভুলে যাওয়ার অনুরোধ ও তার ফল।",
   "written_by": "ভুলে গেছি (RPC)",
   "key_columns": "email, status, requested_at",
@@ -457,7 +464,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "admin",
-  "table_name": "email_outbox",
+  "table_name": "admin_email_outbox",
   "purpose_bn": "কোন ইমেইল কখন কাকে পাঠানো হলো।",
   "written_by": "সিস্টেম (RPC)",
   "key_columns": "kind, to_email, status",
@@ -465,7 +472,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "admin",
-  "table_name": "devices",
+  "table_name": "admin_devices",
   "purpose_bn": "গেটে অনুমোদিত ফোন/ব্রাউজার।",
   "written_by": "স্টাফ নিবন্ধন + অ্যাডমিন অনুমোদন",
   "key_columns": "token_hash, status",
@@ -473,7 +480,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "admin",
-  "table_name": "audit_logs",
+  "table_name": "admin_audit_logs",
   "purpose_bn": "কে কী করল — সব কাজের অডিট-লগ।",
   "written_by": "সিস্টেম (ট্রিগার ও RPC)",
   "key_columns": "action, actor_name, created_at",
@@ -481,7 +488,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "event",
-  "table_name": "events",
+  "table_name": "event_events",
   "purpose_bn": "অনুষ্ঠানের নাম, তারিখ, ভেন্যু ও নিবন্ধন চালু/বন্ধ।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "id, slug, date_label, registration_open",
@@ -489,7 +496,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "event",
-  "table_name": "fees",
+  "table_name": "event_fees",
   "purpose_bn": "বন্ধু ১৪৯৯ · সঙ্গী ৫০০ · প্রতি শিশু ২০০ — ফি-র হার।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "kind, amount",
@@ -497,7 +504,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "event",
-  "table_name": "contacts",
+  "table_name": "event_contacts",
   "purpose_bn": "পাবলিক পেজের যোগাযোগ/হেল্পলাইন নম্বর।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "label, mobile",
@@ -505,7 +512,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "content",
-  "table_name": "sections",
+  "table_name": "content_sections",
   "purpose_bn": "পেজের প্রতিটি সেকশনের শিরোনাম, লেখা ও ছবি (১৩টি)।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "section_key, title, image_url",
@@ -513,14 +520,30 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "content",
-  "table_name": "schedule",
+  "table_name": "content_form_fields",
+  "purpose_bn": "নিবন্ধন ফর্মের ঘর — অ্যাডমিন নিজে যোগ, বদল, ক্রম-বদল, লুকানো ও মুছে ফেলতে পারেন।",
+  "written_by": "অ্যাডমিন প্যানেল (formField.save / formField.delete / formField.move)",
+  "key_columns": "field_key, label_bn, kind, options, is_required, is_visible, sort_order",
+  "sort_order": 15
+ },
+ {
+  "schema_name": "content",
+  "table_name": "content_schedule",
   "purpose_bn": "সকাল ৯টা থেকে সন্ধ্যা ৬টা পর্যন্ত ১৪টি ধাপের সময়সূচি।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "start_time, period, title",
   "sort_order": 14
  },
  {
-  "schema_name": "registration",
+  "schema_name": "user",
+  "table_name": "user",
+  "purpose_bn": "এক ক্লিকে সবার সব তথ্য — নাম, স্কুল, সঙ্গী, শিশু, মোট টাকা, Verified ও টিকিট নম্বর (ভিউ)।",
+  "written_by": "স্বয়ংক্রিয় (মূল টেবিল থেকে)",
+  "key_columns": "Name, School name, Spouse, Child, Amount, Verified",
+  "sort_order": 16
+ },
+ {
+  "schema_name": "user",
   "table_name": "participants",
   "purpose_bn": "যিনি নিবন্ধন করেন — নাম, স্কুল, SSC রোল, মোবাইল, টি-শার্ট সাইজ।",
   "written_by": "নিবন্ধন ফর্ম (RPC)",
@@ -528,7 +551,7 @@ FROM jsonb_to_recordset($tables$[
   "sort_order": 15
  },
  {
-  "schema_name": "registration",
+  "schema_name": "user",
   "table_name": "registrations",
   "purpose_bn": "এক নিবন্ধন: কতজন আসছে, মোট ফি ও অনুমোদনের অবস্থা।",
   "written_by": "নিবন্ধন ফর্ম + অ্যাডমিন",
@@ -536,8 +559,8 @@ FROM jsonb_to_recordset($tables$[
   "sort_order": 16
  },
  {
-  "schema_name": "registration",
-  "table_name": "links",
+  "schema_name": "user",
+  "table_name": "user_links",
   "purpose_bn": "গোপন status/receipt লিংকের SHA-256 hash।",
   "written_by": "সিস্টেম (RPC)",
   "key_columns": "registration_id, tracking_key_hash",
@@ -545,7 +568,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "payment",
-  "table_name": "accounts",
+  "table_name": "payment_accounts",
   "purpose_bn": "bKash/Nagad Send Money নম্বর (Tomal · Mahatab · Shohag · Arif)।",
   "written_by": "অ্যাডমিন প্যানেল",
   "key_columns": "provider, collector_name, mobile",
@@ -569,7 +592,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "gate",
-  "table_name": "tickets",
+  "table_name": "gate_tickets",
   "purpose_bn": "QR টিকিট — অনুমোদনের পর তৈরি, রিফান্ডে বাতিল।",
   "written_by": "সিস্টেম (ট্রিগার)",
   "key_columns": "qr_secret, status, issued_at",
@@ -577,7 +600,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "gate",
-  "table_name": "checkins",
+  "table_name": "gate_checkins",
   "purpose_bn": "দরজার চেক-ইন — এক নিবন্ধনে একবারই।",
   "written_by": "গেট স্ক্যানার",
   "key_columns": "registration_id, group_size, device_id",
@@ -585,7 +608,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "guide",
-  "table_name": "tables",
+  "table_name": "guide_tables",
   "purpose_bn": "এই তালিকা নিজেই: ২৪টি টেবিলের পরিচয়।",
   "written_by": "সেটআপ স্ক্রিপ্ট",
   "key_columns": "schema_name, table_name",
@@ -593,7 +616,7 @@ FROM jsonb_to_recordset($tables$[
  },
  {
   "schema_name": "guide",
-  "table_name": "flows",
+  "table_name": "guide_flows",
   "purpose_bn": "কোন কাজ করলে কী ঘটে — ১৬টি প্রবাহের বর্ণনা।",
   "written_by": "সেটআপ স্ক্রিপ্ট",
   "key_columns": "id, title_bn, steps, effects",
@@ -606,9 +629,38 @@ ON CONFLICT (schema_name, table_name) DO UPDATE SET purpose_bn = excluded.purpos
 -- ═══════════════════════════════════════════════════════════════════
 -- ১৬টি কার্য-প্রবাহ: কোনো কাজ করলে কী ঘটে (action → reaction)
 -- ═══════════════════════════════════════════════════════════════════
-INSERT INTO guide.flows(id, title_bn, actor_bn, trigger_bn, steps, effects, sort_order)
+INSERT INTO guide_flows(id, title_bn, actor_bn, trigger_bn, steps, effects, sort_order)
 SELECT x.id, x.title_bn, x.actor_bn, x.trigger_bn, x.steps, x.effects, x.sort_order
 FROM jsonb_to_recordset($flows$[
+ {
+  "id": "form_field_save",
+  "title_bn": "নিবন্ধন ফর্মে নতুন ঘর যোগ/বদল/মুছে ফেলা",
+  "actor_bn": "প্রধান আয়োজক",
+  "trigger_bn": "প্যানেলের “ফর্মের ঘর” পেজ থেকে ঘর যোগ, বদল, লুকানো, ক্রম বদল বা মুছে ফেলা",
+  "steps": [
+   "প্যানেল public.admin_mutate() ডাকে (formField.save / formField.delete / formField.move)",
+   "ঘরটি content_form_fields-এ লেখা হয় (field_key দিয়ে চেনা হয়, তাই আগের উত্তর হারায় না)",
+   "পাবলিক পেজ public_site() থেকে হালনাগাদ ঘরের তালিকা নেয় — ফর্মে সঙ্গে সঙ্গে দেখা যায়",
+   "কেউ জমা দিলে public.submit_registration() বাধ্যতামূলক ঘর ফাঁকা কি না যাচাই করে",
+   "উত্তরগুলো registrations.custom_answers-এ JSON আকারে জমা হয়",
+   "প্যানেলে প্রতিটি ঘরে কতজন কী উত্তর দিয়েছে তা form_field_stats() থেকে দেখা যায়"
+  ],
+  "effects": [
+   {
+    "table": "content_form_fields",
+    "change": "ঘরের সারি যোগ / বদল / মুছে ফেলা হয়"
+   },
+   {
+    "table": "registrations",
+    "change": "নতুন জমার উত্তর custom_answers-এ লেখা হয়"
+   },
+   {
+    "table": "admin_audit_logs",
+    "change": "কোন ঘর কে বদলাল তা লগ হয়"
+   }
+  ],
+  "sort_order": 19
+ },
  {
   "id": "admin_login_ok",
   "title_bn": "অ্যাডমিন লগইন (সফল)",
@@ -622,15 +674,15 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "admin.login_events",
+    "table": "admin_login_events",
     "change": "সফল লগইনের সারি লেখা হয়"
    },
    {
-    "table": "admin.admins",
+    "table": "admin_users",
     "change": "last_login_at ও login_count হালনাগাদ"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "প্যানেলে করা কাজগুলো নজরে থাকে"
    }
   ],
@@ -648,11 +700,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "admin.login_events",
+    "table": "admin_login_events",
     "change": "ব্যর্থ লগইন succeeded=false হয়ে লেখা হয়"
    },
    {
-    "table": "admin.admins",
+    "table": "admin_users",
     "change": "failed_logins এক বাড়ে"
    }
   ],
@@ -670,11 +722,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "admin.password_resets",
+    "table": "admin_password_resets",
     "change": "status=email_sent বা unknown_email"
    },
    {
-    "table": "admin.email_outbox",
+    "table": "admin_email_outbox",
     "change": "পাঠানোর রেকর্ড queued"
    }
   ],
@@ -692,11 +744,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "admin.password_resets",
+    "table": "admin_password_resets",
     "change": "status=completed, completed_at বসে"
    },
    {
-    "table": "admin.admins",
+    "table": "admin_users",
     "change": "পরের লগইনেই last_login_at হালনাগাদ"
    }
   ],
@@ -715,23 +767,23 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "registration.participants",
+    "table": "participants",
     "change": "নতুন সারি"
    },
    {
-    "table": "registration.registrations",
+    "table": "registrations",
     "change": "total_fee হিসাব করে status=pending"
    },
    {
-    "table": "payment.payments",
+    "table": "payments",
     "change": "status=pending"
    },
    {
-    "table": "registration.links",
+    "table": "user_links",
     "change": "গোপন লিংকের hash"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "registration.created"
    }
   ],
@@ -748,11 +800,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "registration.participants",
+    "table": "participants",
     "change": "কোনো নতুন সারি হয় না (মোবাইল সক্রিয় সীমা)"
    },
    {
-    "table": "payment.payments",
+    "table": "payments",
     "change": "কোনো নতুন সারি হয় না (provider+TrxID একবার)"
    }
   ],
@@ -770,20 +822,20 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "payment.payments",
+    "table": "payments",
     "change": "status=verified, reviewed_by/at"
    },
    {
-    "table": "registration.registrations",
+    "table": "registrations",
     "change": "status=approved, approved_at"
    },
    {
-    "table": "gate.tickets",
+    "table": "gate_tickets",
     "change": "নতুন qr_secret দিয়ে active টিকিট"
    },
    {
-    "table": "admin.audit_logs",
-    "change": "payment.verified"
+    "table": "admin_audit_logs",
+    "change": "payments-এ status = verified"
    }
   ],
   "sort_order": 7
@@ -800,20 +852,20 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "payment.payments",
+    "table": "payments",
     "change": "status=rejected, rejection_reason"
    },
    {
-    "table": "registration.registrations",
+    "table": "registrations",
     "change": "status=rejected"
    },
    {
-    "table": "gate.tickets",
+    "table": "gate_tickets",
     "change": "status=revoked, revoked_at"
    },
    {
-    "table": "admin.audit_logs",
-    "change": "payment.rejected"
+    "table": "admin_audit_logs",
+    "change": "payments-এ status = rejected"
    }
   ],
   "sort_order": 8
@@ -831,24 +883,24 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "payment.refunds",
+    "table": "refunds",
     "change": "নতুন রিফান্ড সারি"
    },
    {
-    "table": "payment.payments",
+    "table": "payments",
     "change": "status=refunded"
    },
    {
-    "table": "registration.registrations",
+    "table": "registrations",
     "change": "status=refunded, refunded_at"
    },
    {
-    "table": "gate.tickets",
+    "table": "gate_tickets",
     "change": "status=revoked"
    },
    {
-    "table": "admin.audit_logs",
-    "change": "refund.created এবং payment.refunded"
+    "table": "admin_audit_logs",
+    "change": "refunds-এ নতুন সারি, payments-এ status = refunded"
    }
   ],
   "sort_order": 9
@@ -865,11 +917,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "gate.checkins",
+    "table": "gate_checkins",
     "change": "নতুন সারি (কতজন, কোন ডিভাইস, কে চালাল)"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "ticket.checkin"
    }
   ],
@@ -887,7 +939,7 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "gate.checkins",
+    "table": "gate_checkins",
     "change": "নতুন সারি হয় না — পুরোনোটাই দেখানো হয়"
    }
   ],
@@ -905,11 +957,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "admin.devices",
+    "table": "admin_devices",
     "change": "status=approved বা pending"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "device.register"
    }
   ],
@@ -927,11 +979,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "admin.devices",
+    "table": "admin_devices",
     "change": "status=approved/revoked, approved_by"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "device.update"
    }
   ],
@@ -948,19 +1000,19 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "content.sections",
+    "table": "content_sections",
     "change": "লেখা/ছবি হালনাগাদ"
    },
    {
-    "table": "content.schedule",
+    "table": "content_schedule",
     "change": "সময়সূচি হালনাগাদ"
    },
    {
-    "table": "event.fees",
+    "table": "event_fees",
     "change": "নতুন ফি আগামী নিবন্ধনে লাগে"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "section.save / fees.save"
    }
   ],
@@ -977,19 +1029,19 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "registration.registrations",
+    "table": "registrations",
     "change": "status=cancelled, archived_at"
    },
    {
-    "table": "registration.participants",
+    "table": "participants",
     "change": "archived_at"
    },
    {
-    "table": "gate.tickets",
+    "table": "gate_tickets",
     "change": "status=revoked"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "registration.remove"
    }
   ],
@@ -1006,11 +1058,11 @@ FROM jsonb_to_recordset($flows$[
   ],
   "effects": [
    {
-    "table": "registration.links",
+    "table": "user_links",
     "change": "নতুন tracking_key_hash"
    },
    {
-    "table": "admin.audit_logs",
+    "table": "admin_audit_logs",
     "change": "registration.reissue"
    }
   ],
@@ -1019,5 +1071,96 @@ FROM jsonb_to_recordset($flows$[
 ]$flows$) AS x(id text, title_bn text, actor_bn text, trigger_bn text, steps jsonb, effects jsonb, sort_order integer)
 ON CONFLICT (id) DO UPDATE SET title_bn = excluded.title_bn, actor_bn = excluded.actor_bn, trigger_bn = excluded.trigger_bn,
   steps = excluded.steps, effects = excluded.effects, sort_order = excluded.sort_order;
+
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- প্রধান অ্যাডমিনের ভূমিকা — auth.users-এ অ্যাকাউন্ট থাকলে নিজে থেকেই বসে।
+-- কেন দরকার: সেটআপ আবার চালালে admin_users খালি হয়ে যায়, তখন কেউ
+-- প্যানেলে ঢুকতে পারে না। এই অংশ বারবার চালানো নিরাপদ (idempotent)।
+-- ═══════════════════════════════════════════════════════════════════
+INSERT INTO admin_users(user_id, role, display_name, is_active)
+SELECT id, 'admin', 'প্রধান আয়োজক', true
+FROM auth.users WHERE lower(email) = lower('graphictech360@gmail.com')
+ON CONFLICT (user_id) DO UPDATE SET role = 'admin', is_active = true,
+  display_name = excluded.display_name;
+
+DO $$
+DECLARE n integer;
+BEGIN
+  SELECT count(*) INTO n FROM admin_users WHERE role = 'admin' AND is_active;
+  RAISE NOTICE 'সক্রিয় অ্যাডমিন: % জন', n;
+END $$;
+
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- নিবন্ধন ফর্মের মূল ঘরগুলো — অ্যাডমিন এগুলোও এডিট/লুকাতে পারেন
+-- (যেমন কিছু অনুষ্ঠানে টি-শার্ট লাগে না → “লুকাও” চাপলেই হবে)
+-- ═══════════════════════════════════════════════════════════════════
+INSERT INTO content_form_fields(event_id, field_key, label_bn, kind, placeholder, help_bn, is_required,
+    is_visible, is_base, is_locked, step, sort_order)
+SELECT e.id, x.field_key, x.label_bn, x.kind, x.placeholder, x.help_bn, x.is_required,
+       x.is_visible, true, x.is_locked, x.step, x.sort_order
+FROM event_events e,
+jsonb_to_recordset($fields$[
+ {"field_key":"photo","label_bn":"নিজের ছবি","kind":"photo","placeholder":"","help_bn":"","is_required":true,"is_visible":true,"is_locked":false,"step":1,"sort_order":10},
+ {"field_key":"name","label_bn":"নাম","kind":"text","placeholder":"তোমার পুরো নাম","help_bn":"","is_required":true,"is_visible":true,"is_locked":true,"step":1,"sort_order":20},
+ {"field_key":"school","label_bn":"স্কুলের নাম","kind":"text","placeholder":"যে স্কুল থেকে এসএসসি পাস করেছ","help_bn":"","is_required":true,"is_visible":true,"is_locked":false,"step":1,"sort_order":30},
+ {"field_key":"ssc_roll","label_bn":"এসএসসি রোল","kind":"text","placeholder":"এসএসসি ১৯৯৬ রোল","help_bn":"","is_required":true,"is_visible":true,"is_locked":false,"step":1,"sort_order":40},
+ {"field_key":"ssc_registration","label_bn":"এসএসসি রেজিস্ট্রেশন","kind":"text","placeholder":"রেজিস্ট্রেশন নম্বর","help_bn":"","is_required":false,"is_visible":true,"is_locked":false,"step":1,"sort_order":50},
+ {"field_key":"mobile","label_bn":"মোবাইল নম্বর","kind":"tel","placeholder":"01XXXXXXXXX","help_bn":"","is_required":true,"is_visible":true,"is_locked":true,"step":1,"sort_order":60},
+ {"field_key":"location","label_bn":"বর্তমান অবস্থান","kind":"text","placeholder":"শহর / দেশ","help_bn":"","is_required":true,"is_visible":true,"is_locked":false,"step":1,"sort_order":70},
+ {"field_key":"family","label_bn":"কারা আসছো একসাথে?","kind":"family","placeholder":"","help_bn":"","is_required":false,"is_visible":true,"is_locked":false,"step":2,"sort_order":80},
+ {"field_key":"tshirt","label_bn":"তোমার টি-শার্টের সাইজ","kind":"tshirt","placeholder":"","help_bn":"এই সাইজটি মূল অংশগ্রহণকারী বন্ধুর জন্য।","is_required":true,"is_visible":true,"is_locked":false,"step":2,"sort_order":90}
+]$fields$) AS x(field_key text, label_bn text, kind text, placeholder text, help_bn text,
+              is_required boolean, is_visible boolean, is_locked boolean, step smallint, sort_order integer)
+WHERE e.slug = 'rangpur-ssc96'
+ON CONFLICT (event_id, field_key) DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- হেডার/মেনুর আইটেম — অ্যাডমিন নিজে বদলাতে পারেন
+-- ═══════════════════════════════════════════════════════════════════
+INSERT INTO content_nav_items(event_id, kind, label_bn, target, sort_order, is_visible)
+SELECT e.id, x.kind, x.label_bn, x.target, x.sort_order, true
+FROM event_events e,
+jsonb_to_recordset($nav$[
+ {"kind":"section","label_bn":"আমাদের গল্প","target":"memories","sort_order":10},
+ {"kind":"section","label_bn":"আয়োজন","target":"festival","sort_order":20},
+ {"kind":"section","label_bn":"সময়সূচি","target":"schedule","sort_order":30},
+ {"kind":"section","label_bn":"নিবন্ধন","target":"registration","sort_order":40},
+ {"kind":"ticket","label_bn":"আমার টিকিট","target":"","sort_order":50}
+]$nav$) AS x(kind text, label_bn text, target text, sort_order integer)
+WHERE e.slug = 'rangpur-ssc96'
+  AND NOT EXISTS (SELECT 1 FROM content_nav_items n WHERE n.event_id = e.id);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- নিবন্ধন কার্ডের লেখা (অ্যাডমিন বদলাতে পারেন; খালি = কোডের লেখাই থাকবে)
+-- ═══════════════════════════════════════════════════════════════════
+INSERT INTO content_form_texts(event_id, text_key, value_bn)
+SELECT e.id, x.text_key, x.value_bn
+FROM event_events e,
+jsonb_to_recordset($texts$[
+ {"text_key":"card.eyebrow","value_bn":"YOUR SEAT IS WAITING"},
+ {"text_key":"card.title","value_bn":"বন্ধু, নামটা লিখে ফেলো!"},
+ {"text_key":"step1.label","value_bn":"পরিচয়"},
+ {"text_key":"step1.title","value_bn":"০১ / তোমার পরিচয়"},
+ {"text_key":"step2.label","value_bn":"পরিবার"},
+ {"text_key":"step2.title","value_bn":"০২ / কারা আসছো একসাথে?"},
+ {"text_key":"step3.label","value_bn":"পেমেন্ট"},
+ {"text_key":"step3.title","value_bn":"০৩ / পেমেন্টের তথ্য"},
+ {"text_key":"fee.label","value_bn":"মোট নিবন্ধন ফি"},
+ {"text_key":"payment.sender_mobile","value_bn":"যে নম্বর থেকে টাকা পাঠিয়েছ"},
+ {"text_key":"payment.sender_mobile_hint","value_bn":"যে নম্বর থেকে পাঠিয়েছ"},
+ {"text_key":"payment.transaction_id","value_bn":"ট্রানজেকশন আইডি"},
+ {"text_key":"payment.transaction_id_hint","value_bn":"যেমন: A7B8C9D0EF"},
+ {"text_key":"family.total","value_bn":"মোট পরিবারের সদস্য"},
+ {"text_key":"family.spouse","value_bn":"জীবনসঙ্গী আসবেন?"},
+ {"text_key":"family.children","value_bn":"কতজন ছোট্ট অতিথি?"},
+ {"text_key":"privacy.note","value_bn":"তথ্য শুধু আয়োজন ও পেমেন্ট যাচাইয়ের জন্য ব্যবহৃত হবে।"},
+ {"text_key":"consent.text","value_bn":"প্রদত্ত তথ্য সঠিক এবং আমি আয়োজনের নিয়ম মেনে চলব।"}
+]$texts$) AS x(text_key text, value_bn text)
+WHERE e.slug = 'rangpur-ssc96'
+ON CONFLICT (event_id, text_key) DO NOTHING;
 
 COMMIT;

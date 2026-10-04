@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Save, Loader2, AlertTriangle } from "lucide-react";
+import { Save, Loader2, AlertTriangle, Camera } from "lucide-react";
 import type {
   AdminData,
   FestivalEvent,
@@ -7,9 +7,15 @@ import type {
   PaymentAccount,
   Registration,
 } from "../types";
-import { money } from "../lib";
+import { money, post, shrinkPhoto } from "../lib";
 export type EditorKind =
-  "section" | "schedule" | "account" | "participant" | "payment";
+  | "section"
+  | "schedule"
+  | "account"
+  | "participant"
+  | "payment"
+  | "formField"
+  | "navItem";
 export interface EditorState {
   kind: EditorKind;
   data: Record<string, any>;
@@ -57,6 +63,7 @@ export function EntityEditor({
 }) {
   const [form, setForm] = useState<Record<string, any>>({ ...editor.data }),
     [busy, setBusy] = useState(false),
+    [photoBusy, setPhotoBusy] = useState(false),
     [error, setError] = useState("");
   const set = (key: string, value: unknown) =>
     setForm((p) => ({ ...p, [key]: value }));
@@ -103,8 +110,27 @@ export function EntityEditor({
     setError("");
     try {
       let payload = { ...form };
-      if (["section", "schedule", "account"].includes(editor.kind))
+      if (
+        ["section", "schedule", "account", "formField", "navItem"].includes(
+          editor.kind,
+        )
+      )
         payload.order = Number(form.order);
+      if (editor.kind === "formField") {
+        payload = {
+          ...form,
+          order: Number(form.order),
+          maxLength: Number(form.maxLength),
+          required: Boolean(form.required),
+          visible: Boolean(form.visible),
+          step: Number(form.step || 1),
+          options: String(form.optionsText || "")
+            .split(",")
+            .map((x: string) => x.trim())
+            .filter(Boolean),
+        };
+        delete (payload as any).optionsText;
+      }
       if (editor.kind === "participant") {
         payload = {
           id: form.id,
@@ -116,11 +142,13 @@ export function EntityEditor({
             mobile: form.mobile,
             location: form.location,
             tshirt: form.tshirt,
+            photoUrl: form.photoUrl || "",
           },
           spouse: Number(form.spouse),
           children: Number(form.children),
-          food: form.food,
+          food: form.food || "",
           notes: form.notes || "",
+          answers: form.answers || {},
         };
       }
       if (editor.kind === "payment")
@@ -142,6 +170,99 @@ export function EntityEditor({
   };
   return (
     <form className="entity-editor" onSubmit={submit}>
+      {editor.kind === "formField" && (
+        <>
+          {form.isBase && (
+            <p className="editor-note">
+              এটি ফর্মের <b>মূল ঘর</b> — লেবেল, ছায়া-লেখা, সাহায্য, ধাপ ও ক্রম
+              বদলাতে পারেন; কী ও ধরন আগের মতোই থাকবে। দরকার না হলে কার্ডের
+              “লুকাও” বোতামে ফর্ম থেকে সরিয়ে দাও।
+            </p>
+          )}
+          {field("label", "ঘরের নাম (বাংলা)")}
+          {!form.isBase && field("key", "কী (ইংরেজি, যেমন blood_group)")}
+          <label className="field">
+            ঘরের ধরন
+            <select
+              value={form.kind}
+              disabled={Boolean(form.isBase)}
+              onChange={(e) => set("kind", e.target.value)}
+            >
+              <option value="text">এক লাইনের লেখা (text)</option>
+              <option value="textarea">বড় লেখা (textarea)</option>
+              <option value="select">তালিকা থেকে বাছাই (select)</option>
+              <option value="number">সংখ্যা (number)</option>
+              <option value="tel">মোবাইল নম্বর (tel)</option>
+              <option value="date">তারিখ (date)</option>
+              <option value="checkbox">হ্যাঁ/না (checkbox)</option>
+            </select>
+          </label>
+          {form.kind === "select" && (
+            <label className="field">
+              বিকল্পগুলো (কমা দিয়ে আলাদা করুন)
+              <input
+                value={form.optionsText ?? (form.options || []).join(", ")}
+                onChange={(e) => set("optionsText", e.target.value)}
+                placeholder="হ্যাঁ, না, জানি না"
+              />
+            </label>
+          )}
+          <label className="field">
+            কোন ধাপে থাকবে
+            <select
+              value={String(form.step ?? 1)}
+              onChange={(e) => set("step", Number(e.target.value))}
+            >
+              <option value="1">ধাপ ১ — পরিচয়</option>
+              <option value="2">ধাপ ২ — কারা আসছো একসাথে</option>
+            </select>
+          </label>
+          {field("placeholder", "ভেতরের ছায়া-লেখা (placeholder)", "text", false)}
+          {field("help", "ছোট সাহায্যের লেখা", "text", false)}
+          {field("maxLength", "সর্বোচ্চ অক্ষর", "number", false)}
+          {field("order", "ক্রম (ছোট আগে) — টেনে সাজালে নিজে থেকেই ঠিক হয়", "number", false)}
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={Boolean(form.required)}
+              disabled={Boolean(form.isLocked)}
+              onChange={(e) => set("required", e.target.checked)}
+            />
+            <span>উত্তর না দিলে জমা নেওয়া হবে না (বাধ্যতামূলক)</span>
+          </label>
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={form.visible !== false}
+              disabled={Boolean(form.isLocked)}
+              onChange={(e) => set("visible", e.target.checked)}
+            />
+            <span>ফর্মে দেখা যাবে {form.isLocked && "(এই ঘরটি সুরক্ষিত)"}</span>
+          </label>
+        </>
+      )}
+      {editor.kind === "navItem" && (
+        <>
+          <label className="field">
+            লিংকের ধরন
+            <select value={form.kind} onChange={(e) => set("kind", e.target.value)}>
+              <option value="section">পেজের অংশে যাবে (section)</option>
+              <option value="ticket">আমার টিকিট বোতাম (ticket)</option>
+              <option value="link">বাইরের লিংক (link)</option>
+            </select>
+          </label>
+          {field("label", "নাম (বাংলা)")}
+          {form.kind !== "ticket" &&
+            field(
+              "target",
+              form.kind === "section"
+                ? "সেকশনের কী (registration, memories, festival, schedule)"
+                : "পুরো ঠিকানা (https://…)",
+            )}
+          {field("order", "ক্রম (ছোট আগে)", "number", false)}
+          {check("visible", "হেডারে দেখাবে")}
+        </>
+      )}
       {editor.kind === "section" && (
         <>
           {field("key", "সেকশন কী (ইংরেজি, যেমন memories)")}
@@ -198,6 +319,61 @@ export function EntityEditor({
       )}
       {editor.kind === "participant" && (
         <>
+          {/* ছবি বদল: হারানো বা পুরোনো ছবি এখান থেকে নতুন করে দেওয়া যায় */}
+          <div className="photo-editor-row">
+            <span className="photo-editor-preview">
+              {form.photoUrl ? (
+                <img src={form.photoUrl} alt="অংশগ্রহণকারীর ছবি" />
+              ) : (
+                String(form.name || "?").charAt(0)
+              )}
+            </span>
+            <div className="photo-editor-actions">
+              <label className="button button-outline">
+                {photoBusy ? (
+                  <Loader2 size={15} className="spin" />
+                ) : (
+                  <Camera size={15} />
+                )}
+                {photoBusy ? "ছবি প্রস্তুত হচ্ছে…" : "ছবি বদলান"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  hidden
+                  disabled={photoBusy}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setPhotoBusy(true);
+                    try {
+                      const small = await shrinkPhoto(file);
+                      const out = await post<{ url: string }>("/photo", {
+                        photo: small,
+                      });
+                      set("photoUrl", out.url);
+                    } catch (err) {
+                      setError((err as Error).message);
+                    } finally {
+                      setPhotoBusy(false);
+                    }
+                  }}
+                />
+              </label>
+              {form.photoUrl && (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => set("photoUrl", "")}
+                >
+                  ছবি সরান
+                </button>
+              )}
+              <p className="admin-note">
+                টিকিটে, প্যানেলে ও CSV রিপোর্টে এই ছবিই দেখা যায়। ছবি না
+                দিলে নামের প্রথম অক্ষর দেখানো হয়।
+              </p>
+            </div>
+          </div>
           <div className="field-grid">
             {field("name", "নাম")}
             {field("mobile", "মোবাইল", "tel")}
@@ -221,11 +397,12 @@ export function EntityEditor({
               </select>
             </label>
             <label className="field">
-              খাবারের পছন্দ
+              খাবারের পছন্দ <span className="optional">ঐচ্ছিক</span>
               <select
-                value={form.food}
+                value={form.food || ""}
                 onChange={(e) => set("food", e.target.value)}
               >
+                <option value="">— নেই —</option>
                 {["সাধারণ", "নিরামিষ", "বিশেষ অনুরোধ"].map((v) => (
                   <option key={v}>{v}</option>
                 ))}

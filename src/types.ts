@@ -10,6 +10,7 @@ export interface FestivalEvent {
   city: string;
   venueEnglish: string;
   registrationOpen: boolean;
+  photoRequired?: boolean;
 }
 export interface Fees {
   friend: number;
@@ -43,6 +44,49 @@ export interface PaymentAccount {
   active: boolean;
   order: number;
 }
+/** নিবন্ধন ফর্মের একটি ঘর — অ্যাডমিন প্যানেল থেকেই যোগ/বদল/মুছে ফেলা যায় */
+export type FieldKind =
+  | "text"
+  | "textarea"
+  | "select"
+  | "number"
+  | "tel"
+  | "date"
+  | "checkbox";
+export interface FormField {
+  id: string;
+  key: string;
+  label: string;
+  /** ১ = পরিচয় ধাপ, ২ = পরিবার ধাপ */
+  kind: FieldKind;
+  options: string[];
+  placeholder: string;
+  help: string;
+  maxLength: number;
+  required: boolean;
+  order: number;
+  step?: number;
+  isBase?: boolean;
+  isLocked?: boolean;
+  visible?: boolean;
+  texts?: { label?: string | null; help?: string | null; placeholder?: string | null };
+}
+export interface NavItem {
+  id: string;
+  kind: "section" | "ticket" | "link";
+  label: string;
+  target: string;
+  order: number;
+  visible: boolean;
+}
+export interface FormFieldStat {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  order: number;
+  answered: number;
+  top: { value: string; count: number }[];
+}
 export interface Site {
   mode: Mode;
   event: FestivalEvent;
@@ -50,6 +94,12 @@ export interface Site {
   sections: Section[];
   schedule: ScheduleItem[];
   accounts: PaymentAccount[];
+  /** ফর্মের সব ঘর (মূল + অ্যাডমিনের যোগ করা) — সবসময় উপর-নিচে সাজানো */
+  formFields: FormField[];
+  /** ফর্মের লেখাগুলোর বদলে দেওয়া মান */
+  formTexts?: Record<string, string>;
+  /** হেডার/মেনুর আইটেম */
+  nav?: NavItem[];
   demoTicketKey?: string;
 }
 export interface Participant {
@@ -60,6 +110,8 @@ export interface Participant {
   mobile: string;
   location: string;
   tshirt: string;
+  /** টিকিটে ও গেটে দেখানো ছবি — Supabase Storage-এর ছোট করা (৫১২×৫১২) পাবলিক লিংক */
+  photoUrl?: string;
 }
 export interface Payment {
   id: string;
@@ -82,6 +134,8 @@ export interface Registration {
   children: number;
   food: string;
   notes: string;
+  /** অ্যাডমিন-যোগ করা ঘরগুলোর উত্তর — { "blood_group": "B+" } আকারে */
+  answers?: Record<string, string>;
   feeSnapshot: Fees;
   total: number;
   status: "pending" | "approved" | "rejected" | "cancelled";
@@ -125,6 +179,10 @@ export interface AdminData {
   registrations: Registration[];
   devices: Device[];
   audit: Audit[];
+  formFields: FormField[];
+  formFieldStats: FormFieldStat[];
+  formTexts: Record<string, string>;
+  nav: NavItem[];
   stats: AdminStats;
 }
 export interface CheckinResult {
@@ -132,6 +190,8 @@ export interface CheckinResult {
   ticketNumber: string;
   name: string;
   school: string;
+  /** গেটে চেনার জন্য অংশগ্রহণকারীর ছবি (Storage-এর লিংক) */
+  photoUrl?: string;
   people: number;
   spouse: number;
   children: number;
@@ -173,6 +233,8 @@ export interface AdminStats {
   }[];
   tshirts: { size: string; count: number }[];
   foods: { preference: string; count: number }[];
+  /** অ্যাডমিন-যোগ করা ঘরে কে কী উত্তর দিয়েছে */
+  formFields?: FormFieldStat[];
   providers: {
     provider: string;
     count: number;

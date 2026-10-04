@@ -11,6 +11,7 @@ import {
   Shirt,
   UtensilsCrossed,
   Smartphone,
+  ListChecks,
 } from "lucide-react";
 import type { AdminStats, Registration } from "../types";
 import { bn, money, downloadTableCsv, dateTime } from "../lib";
@@ -81,8 +82,14 @@ export default function Reports({
       ["টি-শার্ট", "সংখ্যা"],
       ...stats.tshirts.map((x) => [x.size, x.count]),
       [],
-      ["খাবার", "সংখ্যা"],
-      ...stats.foods.map((x) => [x.preference, x.count]),
+      ...(stats.foods.length
+        ? [["খাবার", "সংখ্যা"], ...stats.foods.map((x) => [x.preference, x.count])]
+        : []),
+      ...(stats.formFields || []).flatMap((f) => [
+        [],
+        [`${f.label} (${f.answered} জন)`, "সংখ্যা"],
+        ...f.top.map((t) => [t.value, t.count]),
+      ]),
       [],
       ["মাধ্যম", "নিবন্ধন", "জমা টাকা", "যাচাইকৃত"],
       ...stats.providers.map((x) => [
@@ -304,12 +311,12 @@ export default function Reports({
           </ul>
         </div>
 
+        {stats.foods.length > 0 && (
         <div className="admin-panel-card">
           <h3>
             <UtensilsCrossed size={18} /> খাবারের পছন্দ
           </h3>
           <ul className="report-list">
-            {stats.foods.length === 0 && <li>এখনো তথ্য নেই।</li>}
             {stats.foods.map((x) => (
               <li key={x.preference}>
                 <span>{x.preference}</span>
@@ -318,6 +325,25 @@ export default function Reports({
             ))}
           </ul>
         </div>
+        )}
+
+        {(stats.formFields || []).map((f) => (
+          <div className="admin-panel-card" key={f.key}>
+            <h3>
+              <ListChecks size={18} /> {f.label}
+            </h3>
+            <p className="report-subnote">{bn(f.answered)} জন উত্তর দিয়েছে</p>
+            <ul className="report-list">
+              {f.top.length === 0 && <li>এখনো তথ্য নেই।</li>}
+              {f.top.map((t) => (
+                <li key={t.value}>
+                  <span>{t.value}</span>
+                  <b>{bn(t.count)}</b>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
 
         <div className="admin-panel-card">
           <h3>

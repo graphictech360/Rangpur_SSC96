@@ -92,6 +92,34 @@ export function Dialog({
     </dialog>
   );
 }
+/** নামের প্রথম অক্ষরের বদলে অংশগ্রহণকারীর আসল ছবি (থাকলে) দেখায় */
+export function Avatar({
+  name,
+  photo,
+  className = "",
+}: {
+  name: string;
+  photo?: string;
+  className?: string;
+}) {
+  // ছবি না থাকলে বা কোনো কারণে লোড না হলে নামের প্রথম অক্ষর দেখানো হয়
+  const [broken, setBroken] = useState(false);
+  return (
+    <span className={`participant-avatar ${className}`.trim()}>
+      {photo && !broken ? (
+        <img
+          src={photo}
+          alt={name}
+          loading="lazy"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        name.charAt(0)
+      )}
+    </span>
+  );
+}
+
 export function Spinner({ label = "একটু অপেক্ষা…" }: { label?: string }) {
   return (
     <div className="loading-state">
@@ -170,4 +198,88 @@ export function useReveal(deps: unknown[] = []) {
     document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, deps);
+}
+
+/* ── নিবন্ধন ফর্মের অতিরিক্ত ঘর (অ্যাডমিন যোগ করেন) — সবসময় উপর-নিচে ── */
+import type { FormField } from "../types";
+export function DynamicFields({
+  fields,
+  values,
+  onChange,
+  idPrefix = "extra",
+}: {
+  fields: FormField[];
+  values: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+  idPrefix?: string;
+}) {
+  if (!fields.length) return null;
+  return (
+    <div className="dynamic-fields">
+      {fields.map((f) => {
+        const id = `${idPrefix}-${f.key}`;
+        const value = values[f.key] ?? "";
+        const common = {
+          id,
+          name: f.key,
+          value,
+          required: f.required,
+          maxLength: f.maxLength,
+          placeholder: f.placeholder || undefined,
+        };
+        return (
+          <label className="field dynamic-field" key={f.id || f.key} htmlFor={id}>
+            <span className="dynamic-field-label">
+              {f.label}
+              {f.required ? <em> *</em> : <span className="optional">ঐচ্ছিক</span>}
+            </span>
+            {f.kind === "textarea" ? (
+              <textarea
+                {...common}
+                rows={3}
+                onChange={(e) => onChange(f.key, e.target.value)}
+              />
+            ) : f.kind === "select" ? (
+              <select
+                id={id}
+                name={f.key}
+                value={value}
+                required={f.required}
+                onChange={(e) => onChange(f.key, e.target.value)}
+              >
+                <option value="">— বেছে নাও —</option>
+                {f.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            ) : f.kind === "checkbox" ? (
+              <span className="checkbox-row">
+                <input
+                  id={id}
+                  type="checkbox"
+                  checked={["হ্যাঁ", "yes", "true", "1"].includes(value)}
+                  onChange={(e) => onChange(f.key, e.target.checked ? "হ্যাঁ" : "")}
+                />
+                <span>{f.placeholder || "হ্যাঁ, প্রযোজ্য"}</span>
+              </span>
+            ) : (
+              <input
+                {...common}
+                type={
+                  f.kind === "number" ? "number" : f.kind === "date" ? "date" : f.kind === "tel" ? "tel" : "text"
+                }
+                inputMode={
+                  f.kind === "number" ? "numeric" : f.kind === "tel" ? "tel" : undefined
+                }
+                onChange={(e) => onChange(f.key, e.target.value)}
+              />
+            )}
+            {f.help && <small className="field-help">{f.help}</small>}
+          </label>
+        );
+      })}
+    </div>
+  );
 }

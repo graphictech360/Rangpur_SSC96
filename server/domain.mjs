@@ -12,20 +12,41 @@ const mobile = z
   .refine((x) => /^01[3-9]\d{8}$/.test(x), "সঠিক বাংলাদেশি মোবাইল নম্বর দিন।");
 const text = (max = 200) => z.string().trim().min(1, "এই তথ্যটি দিন।").max(max);
 export const participantSchema = z.object({
+  // নাম ও মোবাইল কখনোই ফাঁকা চলবে না (এগুলো সুরক্ষিত ঘর);
+  // বাকিগুলো অ্যাডমিন লুকিয়ে দিলে ফাঁকা এলেও নিবন্ধন আটকাবে না।
   name: text(120),
-  school: text(200),
-  sscRoll: text(30),
+  school: z.string().trim().max(200).default(""),
+  sscRoll: z.string().trim().max(30).default(""),
   sscRegistration: z.string().trim().max(40).default(""),
   mobile,
-  location: text(200),
+  location: z.string().trim().max(200).default(""),
   tshirt: z.enum(["XS", "S", "M", "L", "XL", "XXL", "3XL"]),
+  // ছবির ঠিকানা: অনলাইনে Supabase Storage-এর ছোট লিংক, ডেমো/অফলাইনে data URI
+  photoUrl: z
+    .string()
+    .trim()
+    .max(1_400_000)
+    .refine(
+      (v) =>
+        v === "" ||
+        (/^https:\/\//.test(v) && v.length <= 400) ||
+        /^data:image\/(jpeg|jpg|png|webp);base64,/.test(v),
+      "ছবির লিংক সঠিক নয়।",
+    )
+    .default(""),
 });
 export const registrationSchema = z.object({
   participant: participantSchema,
   spouse: z.coerce.number().int().min(0).max(1),
   children: z.coerce.number().int().min(0).max(20),
-  food: z.enum(["সাধারণ", "নিরামিষ", "বিশেষ অনুরোধ"]),
+  // ফর্ম থেকে সরানো হয়েছে; পুরোনো ক্লায়েন্ট পাঠালেও চলবে (না দিলে ফাঁকা থাকে)
+  food: z
+    .enum(["সাধারণ", "নিরামিষ", "বিশেষ অনুরোধ", ""])
+    .optional()
+    .default(""),
   notes: z.string().trim().max(600).default(""),
+  // ফর্মে অ্যাডমিন যে ঘরগুলো যোগ করেছেন, সেগুলোর উত্তর
+  answers: z.record(z.string().max(40), z.string().max(2000)).optional().default({}),
   payment: z.object({
     provider: z.enum(["bkash", "nagad"]),
     accountId: z.string().uuid(),
@@ -52,6 +73,55 @@ export const eventSchema = z.object({
   city: text(100),
   venueEnglish: text(200),
   registrationOpen: z.boolean(),
+});
+/** নিবন্ধন ফর্মের ঘর — অ্যাডমিন প্যানেল থেকে যোগ/বদল করা যায় */
+export const formFieldSchema = z.object({
+  id: z.string().uuid().optional(),
+  key: z
+    .string()
+    .trim()
+    .min(3)
+    .max(30)
+    .regex(
+      /^[a-z][a-z0-9_]{2,29}$/,
+      "কী-তে ছোট ইংরেজি অক্ষর, সংখ্যা ও আন্ডারস্কোর দিন (যেমন: blood_group)।",
+    ),
+  label: text(120),
+  kind: z.enum([
+    "text",
+    "textarea",
+    "select",
+    "number",
+    "tel",
+    "date",
+    "checkbox",
+    // মূল ঘরের নিজস্ব ধরন
+    "photo",
+    "tshirt",
+    "family",
+  ]),
+  options: z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+  placeholder: z.string().trim().max(200).default(""),
+  help: z.string().trim().max(300).default(""),
+  maxLength: z.coerce.number().int().min(1).max(2000).default(200),
+  required: z.coerce.boolean().default(false),
+  visible: z.coerce.boolean().default(true),
+  order: z.coerce.number().int().min(0).max(999).default(50),
+  // ফর্মের কোন ধাপে ঘরটি থাকবে (১ = পরিচয়, ২ = পরিবার)
+  step: z.coerce.number().int().min(1).max(2).default(1),
+  // মূল ঘর (নাম, মোবাইল, ছবি, টি-শার্ট…) — মুছে ফেলা যায় না, শুধু এডিট/লুকানো
+  isBase: z.coerce.boolean().optional(),
+  isLocked: z.coerce.boolean().optional(),
+});
+
+// হেডারের মেনুর একটি আইটেম — অ্যাডমিন নিজে যোগ/বদল/লুকাতে পারেন
+export const navItemSchema = z.object({
+  id: z.string().uuid().optional(),
+  kind: z.enum(["section", "ticket", "link"]),
+  label: text(60),
+  target: z.string().trim().max(400).default(""),
+  order: z.coerce.number().int().min(0).max(999).default(50),
+  visible: z.coerce.boolean().default(true),
 });
 export const sectionSchema = z.object({
   id: z.string().uuid().optional(),

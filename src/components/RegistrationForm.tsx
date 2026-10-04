@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -15,8 +15,13 @@ import {
   Sparkles,
   AlertTriangle,
   ExternalLink,
+  Camera,
+  Upload,
+  Trash2,
+  KeyRound,
+  Link2,
 } from "lucide-react";
-import type { Participant, Registration, Site, Provider } from "../types";
+import type { FormField, Participant, Registration, Site, Provider } from "../types";
 import {
   bn,
   money,
@@ -25,8 +30,10 @@ import {
   saveTicket,
   ticketLink,
   copyText,
+  shrinkPhoto,
+  PHOTO_SIZE,
 } from "../lib";
-import { StatusBadge, useToast } from "./UI";
+import { DynamicFields, StatusBadge, useToast } from "./UI";
 const emptyParticipant: Participant = {
   name: "",
   school: "",
@@ -35,6 +42,7 @@ const emptyParticipant: Participant = {
   mobile: "",
   location: "",
   tshirt: "L",
+  photoUrl: "",
 };
 interface Props {
   site: Site;
@@ -50,8 +58,9 @@ export default function RegistrationForm({
     [participant, setParticipant] = useState(emptyParticipant);
   const [spouse, setSpouse] = useState(0),
     [children, setChildren] = useState(0);
-  const [food, setFood] = useState("সাধারণ"),
-    [notes, setNotes] = useState("");
+  // খাবার ও বিশেষ অনুরোধ আর ফর্মে নেই (আয়োজকের নির্দেশ);
+  // অ্যাডমিন প্যানেল থেকে যোগ করা ঘরগুলোর উত্তর এখানে রাখা হয়।
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [provider, setProvider] = useState<Provider>("bkash");
   const [accountId, setAccountId] = useState(
     site.accounts.find((a) => a.provider === "bkash")?.id || "",
@@ -61,6 +70,18 @@ export default function RegistrationForm({
     [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  // ফর্মের ঘরগুলো এখন অ্যাডমিন প্যানেল থেকেই আসে (মূল ঘর + নিজের যোগ করা ঘর)
+  const fields = (site.formFields || [])
+    .slice()
+    .sort((a, b) => a.order - b.order);
+  const fld = (key: string) => fields.find((f) => f.key === key);
+  const text = (key: string, fallback: string) =>
+    site.formTexts?.[key]?.trim() ? site.formTexts[key] : fallback;
+  const shown = (key: string) => Boolean(fld(key));           // লুকানো ঘর তালিকায় থাকে না
+  const need = (key: string) => fld(key)?.required === true;
+  const photoRequired = shown("photo") && need("photo");
   const [success, setSuccess] = useState<{
     registration: Registration;
     trackingKey: string;
@@ -71,6 +92,40 @@ export default function RegistrationForm({
   const account = site.accounts.find((a) => a.id === accountId);
   const update = (key: keyof Participant, value: string) =>
     setParticipant((p) => ({ ...p, [key]: value }));
+  const onPickPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    setError("");
+    try {
+      // যেকোনো সাইজের ছবি হলেও ঠিক ৫১২×৫১২ (~৭০ KB) বানিয়ে নেওয়া হয়
+      const prepared = await shrinkPhoto(file);
+      update("photoUrl", prepared);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ছবিটি নেওয়া যায়নি।");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+  /** ডেমো তথ্য দিলে ছবির বদলে হালকা একটা নমুনা ছবি (ছোট, ~৫ KB) তৈরি হয় */
+  const demoPhoto = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = PHOTO_SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+    const grad = ctx.createLinearGradient(0, 0, PHOTO_SIZE, PHOTO_SIZE);
+    grad.addColorStop(0, "#0f766e");
+    grad.addColorStop(1, "#134e4a");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, PHOTO_SIZE, PHOTO_SIZE);
+    ctx.fillStyle = "#fdf6e3";
+    ctx.font = "bold 230px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("র", PHOTO_SIZE / 2, PHOTO_SIZE / 2 + 10);
+    return canvas.toDataURL("image/jpeg", 0.6);
+  };
   const chooseProvider = (value: Provider) => {
     setProvider(value);
     setAccountId(site.accounts.find((a) => a.provider === value)?.id || "");
@@ -88,6 +143,8 @@ export default function RegistrationForm({
         document.getElementById("reg-mobile")?.focus();
         return "সঠিক বাংলাদেশি মোবাইল নম্বর দাও।";
       }
+      if (photoRequired && !participant.photoUrl?.trim())
+        return "নিজের একটি ছবি দাও — টিকিটে তোমার ছবিই থাকবে, গেটে চেনা সহজ হবে।";
     }
     if (step === 2) {
       if (!account) return "পেমেন্ট গ্রহণকারীর নম্বর বেছে নাও।";
@@ -115,15 +172,30 @@ export default function RegistrationForm({
     setBusy(true);
     setError("");
     try {
+      // ছবিটি প্রথমে Storage-এ তোলা হয়, তারপর ফিরে আসা ছোট লিংকটি নিবন্ধনে যায়
+      let photoUrl = participant.photoUrl?.trim() || "";
+      if (photoUrl.startsWith("data:")) {
+        const uploaded = await post<{ url: string }>("/photo", {
+          photo: photoUrl,
+        });
+        photoUrl = uploaded.url;
+      }
+      // মূল ঘরগুলো (নাম, ছবি, টি-শার্ট…) ধাপে ধাপেই যাচাই হয়ে গেছে;
+      // এখানে শুধু অ্যাডমিনের যোগ করা অতিরিক্ত ঘরগুলোর উত্তর দেখা হয়।
+      const missing = (site.formFields || []).find(
+        (f) => !f.isBase && f.required && !String(answers[f.key] || "").trim(),
+      );
+      if (missing) throw new Error(`ঘরটি পূরণ করুন: ${missing.label}`);
       const result = await post<{
         registration: Registration;
         trackingKey: string;
       }>("/registrations", {
-        participant,
+        participant: { ...participant, photoUrl },
         spouse,
         children,
-        food,
-        notes,
+        answers: Object.fromEntries(
+          Object.entries(answers).filter(([, v]) => v !== ""),
+        ),
         payment: {
           provider,
           accountId,
@@ -161,10 +233,192 @@ export default function RegistrationForm({
       mobile,
       location: "ঢাকা",
       tshirt: "L",
+      photoUrl: demoPhoto(),
     });
     setSenderMobile(mobile);
-    toast("কাল্পনিক তথ্য বসানো হয়েছে।");
+    toast("কাল্পনিক তথ্য ও নমুনা ছবি বসানো হয়েছে।");
   };
+  // ── প্রতিটি ঘর আঁকার নিয়ম (মূল ঘরগুলো নিজের রকম, অতিরিক্ত ঘর সাধারণ) ──
+  const labelOf = (f: FormField) => (
+    <>
+      {f.label}{" "}
+      {f.required ? <em>*</em> : <span className="optional">ঐচ্ছিক</span>}
+    </>
+  );
+  const baseInputs: Record<
+    string,
+    { id: string; name: keyof Participant; type?: string; autoComplete?: string; maxLength?: number }
+  > = {
+    name: { id: "reg-name", name: "name", autoComplete: "name", maxLength: 120 },
+    school: { id: "reg-school", name: "school", maxLength: 200 },
+    ssc_roll: { id: "reg-sscRoll", name: "sscRoll", maxLength: 30 },
+    ssc_registration: { id: "reg-sscRegistration", name: "sscRegistration", maxLength: 40 },
+    mobile: { id: "reg-mobile", name: "mobile", type: "tel", autoComplete: "tel" },
+    location: { id: "reg-location", name: "location", maxLength: 200 },
+  };
+  const renderField = (f: FormField) => {
+    // ১) মূল টেক্সট ঘর (নাম, স্কুল, রোল, রেজিস্ট্রেশন, মোবাইল, অবস্থান)
+    if (baseInputs[f.key]) {
+      const cfg = baseInputs[f.key];
+      return (
+        <label className="field field-full" key={f.id}>
+          {labelOf(f)}
+          <input
+            id={cfg.id}
+            name={cfg.name}
+            type={cfg.type || "text"}
+            autoComplete={cfg.autoComplete}
+            placeholder={f.placeholder || undefined}
+            maxLength={cfg.maxLength}
+            value={String(participant[cfg.name] ?? "")}
+            onChange={(e) => update(cfg.name, e.target.value)}
+          />
+          {f.help && <small className="field-help">{f.help}</small>}
+        </label>
+      );
+    }
+    // ২) ছবি
+    if (f.key === "photo")
+      return (
+        <div className="field field-full photo-field" key={f.id}>
+          <span className="photo-label">{labelOf(f)}</span>
+          <div className="photo-picker">
+            <span className={`photo-preview${photoBusy ? " busy" : ""}`}>
+              {participant.photoUrl ? (
+                <img src={participant.photoUrl} alt="নির্বাচিত ছবি" />
+              ) : photoBusy ? (
+                <Loader2 size={22} className="spin" />
+              ) : (
+                <Camera size={24} />
+              )}
+              <input
+                ref={fileInput}
+                className="photo-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={onPickPhoto}
+                aria-label="নিজের ছবি বাছাই করুন"
+              />
+            </span>
+            <div className="photo-actions">
+              <button
+                type="button"
+                className="button button-outline"
+                disabled={photoBusy}
+                onClick={() => fileInput.current?.click()}
+              >
+                {photoBusy ? <Loader2 size={15} className="spin" /> : <Upload size={15} />}
+                {photoBusy
+                  ? "ছবি প্রস্তুত হচ্ছে…"
+                  : participant.photoUrl
+                    ? "অন্য ছবি বাছাই করুন"
+                    : "ছবি বাছাই করুন"}
+              </button>
+              {participant.photoUrl && (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => update("photoUrl", "")}
+                >
+                  <Trash2 size={15} />
+                  মুছে ফেলুন
+                </button>
+              )}
+            </div>
+          </div>
+          {f.help && <small className="field-help">{f.help}</small>}
+        </div>
+      );
+    // ৩) পরিবার (জীবনসঙ্গী + শিশু + মোট)
+    if (f.key === "family")
+      return (
+        <div className="field family-block" key={f.id}>
+          <div className="family-option">
+            <span className="family-icon">
+              <Heart size={20} />
+            </span>
+            <div>
+              <b>{text("family.spouse", "জীবনসঙ্গী আসবেন?")}</b>
+              <small>অতিরিক্ত ৳ {money(site.fees.spouse)}</small>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="জীবনসঙ্গী আসবেন"
+              aria-checked={spouse === 1}
+              className={`switch ${spouse ? "on" : ""}`}
+              onClick={() => setSpouse(spouse ? 0 : 1)}
+            >
+              <span />
+            </button>
+          </div>
+          <div className="family-option">
+            <span className="family-icon child-icon">
+              <Baby size={21} />
+            </span>
+            <div>
+              <b>{text("family.children", "কতজন ছোট্ট অতিথি?")}</b>
+              <small>শিশু প্রতি ৳ {money(site.fees.child)}</small>
+            </div>
+            <div className="stepper">
+              <button
+                type="button"
+                aria-label="শিশুর সংখ্যা কমাও"
+                disabled={!children}
+                onClick={() => setChildren(children - 1)}
+              >
+                <Minus size={15} />
+              </button>
+              <span>{bn(children)}</span>
+              <button
+                type="button"
+                aria-label="শিশুর সংখ্যা বাড়াও"
+                disabled={children >= 20}
+                onClick={() => setChildren(children + 1)}
+              >
+                <Plus size={15} />
+              </button>
+            </div>
+          </div>
+          <label className="field family-total">
+            {text("family.total", "মোট পরিবারের সদস্য")}
+            <input readOnly value={`${bn(1 + spouse + children)} জন (তোমাকেসহ)`} />
+          </label>
+        </div>
+      );
+    // ৪) টি-শার্টের সাইজ (লুকালে ফর্মে আসে না — কিছু আয়োজনে লাগে না)
+    if (f.key === "tshirt")
+      return (
+        <div className="field tshirt-field" key={f.id}>
+          <span>{labelOf(f)}</span>
+          <div className="size-options">
+            {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((size) => (
+              <button
+                type="button"
+                aria-pressed={participant.tshirt === size}
+                className={participant.tshirt === size ? "active" : ""}
+                key={size}
+                onClick={() => update("tshirt", size)}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+          {f.help && <small>{f.help}</small>}
+        </div>
+      );
+    // ৫) অতিরিক্ত ঘর (অ্যাডমিন যোগ করেছেন)
+    return (
+      <DynamicFields
+        key={f.id}
+        fields={[f]}
+        values={answers}
+        onChange={(key, value) => setAnswers((a) => ({ ...a, [key]: value }))}
+        idPrefix="reg"
+      />
+    );
+  };
+
   if (success)
     return (
       <div className="registration-card success-card">
@@ -195,6 +449,47 @@ export default function RegistrationForm({
             <b>৳ {money(total)}</b>
           </div>
         </div>
+        <div className="success-keys">
+          <div className="key-row">
+            <span className="key-label">
+              <Link2 size={15} /> তোমার গোপন টিকিট-লিংক
+            </span>
+            <code className="key-value">{ticketLink(success.trackingKey)}</code>
+            <button
+              type="button"
+              className="key-copy"
+              aria-label="লিংক কপি করো"
+              onClick={() => copy(ticketLink(success.trackingKey))}
+            >
+              <Copy size={15} /> কপি
+            </button>
+          </div>
+          <div className="key-row">
+            <span className="key-label">
+              <KeyRound size={15} /> রিকভারি কোড (লিংক হারালে এটাই কাজে দেবে)
+            </span>
+            <code className="key-value mono">{success.trackingKey}</code>
+            <button
+              type="button"
+              className="key-copy"
+              aria-label="রিকভারি কোড কপি করো"
+              onClick={() => copy(success.trackingKey)}
+            >
+              <Copy size={15} /> কপি
+            </button>
+          </div>
+          <p className="small-note">
+            <Camera size={14} />
+            এই পর্দার একটি স্ক্রিনশট নিয়ে রাখো, বা লিংক নিজের WhatsApp-এ পাঠাও।
+            অন্য কেউ এই লিংক পেলে তোমার টিকিট দেখতে পাবে — তাই প্রকাশ্যে দিও না।
+          </p>
+          <p className="small-note">
+            <LockKeyhole size={14} />
+            এই ব্রাউজারেই আবার এলে “আমার টিকিট”-এ নিজে থেকেই দেখা যাবে।
+            হারিয়ে গেলে আয়োজককে মোবাইল নম্বর ও TrxID জানাও — নতুন লিংক দেবেন
+            (পুরোনো লিংক তখন বাতিল হয়ে যাবে)। কোনো এসএমএস পাঠানো হয় না।
+          </p>
+        </div>
         <button
           className="button button-primary full-width"
           onClick={() => onTicket(success.trackingKey)}
@@ -209,10 +504,6 @@ export default function RegistrationForm({
           <Copy size={17} />
           গোপন লিংক কপি করো
         </button>
-        <p className="small-note">
-          <LockKeyhole size={14} />
-          লিংকটি ব্যক্তিগত। প্রকাশ্যে শেয়ার করো না। এসএমএস পাঠানো হবে না।
-        </p>
         <button
           className="text-button"
           onClick={() => {
@@ -234,15 +525,19 @@ export default function RegistrationForm({
     <div className="registration-card">
       <div className="form-card-heading">
         <div>
-          <span className="form-overline">YOUR SEAT IS WAITING</span>
-          <h3>বন্ধু, নামটা লিখে ফেলো!</h3>
+          <span className="form-overline">
+            {text("card.eyebrow", "YOUR SEAT IS WAITING")}
+          </span>
+          <h3>{text("card.title", "বন্ধু, নামটা লিখে ফেলো!")}</h3>
         </div>
         <span className="form-heading-icon">
           <Ticket size={24} />
         </span>
       </div>
       <div className="form-steps" aria-label="নিবন্ধনের ধাপ">
-        {["পরিচয়", "পরিবার", "পেমেন্ট"].map((label, i) => (
+        {["step1.label", "step2.label", "step3.label"]
+          .map((key, i) => text(key, ["পরিচয়", "পরিবার", "পেমেন্ট"][i]))
+          .map((label, i) => (
           <div
             className={i === step ? "active" : i < step ? "complete" : ""}
             key={label}
@@ -265,86 +560,18 @@ export default function RegistrationForm({
           {step === 0 && (
             <div className="form-step-content">
               <div className="form-step-title">
-                <span>০১ / তোমার পরিচয়</span>
+                <span>{text("step1.title", "০১ / তোমার পরিচয়")}</span>
                 {site.mode === "demo" && (
-                  <button
-                    type="button"
-                    className="demo-fill"
-                    onClick={demoFill}
-                  >
+                  <button type="button" className="demo-fill" onClick={demoFill}>
                     <Sparkles size={13} />
                     ডেমো তথ্য
                   </button>
                 )}
               </div>
               <div className="field-grid">
-                <label className="field field-full">
-                  নাম <em>*</em>
-                  <input
-                    id="reg-name"
-                    name="name"
-                    placeholder="তোমার পুরো নাম"
-                    autoComplete="name"
-                    maxLength={120}
-                    value={participant.name}
-                    onChange={(e) => update("name", e.target.value)}
-                  />
-                </label>
-                <label className="field field-full">
-                  স্কুলের নাম <em>*</em>
-                  <input
-                    id="reg-school"
-                    name="school"
-                    placeholder="যে স্কুল থেকে এসএসসি পাস করেছ"
-                    maxLength={200}
-                    value={participant.school}
-                    onChange={(e) => update("school", e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  এসএসসি রোল <em>*</em>
-                  <input
-                    id="reg-sscRoll"
-                    name="sscRoll"
-                    placeholder="এসএসসি ১৯৯৬ রোল"
-                    maxLength={30}
-                    value={participant.sscRoll}
-                    onChange={(e) => update("sscRoll", e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  এসএসসি রেজিস্ট্রেশন <span className="optional">ঐচ্ছিক</span>
-                  <input
-                    name="sscRegistration"
-                    placeholder="রেজিস্ট্রেশন নম্বর"
-                    maxLength={40}
-                    value={participant.sscRegistration}
-                    onChange={(e) => update("sscRegistration", e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  মোবাইল নম্বর <em>*</em>
-                  <input
-                    id="reg-mobile"
-                    name="mobile"
-                    type="tel"
-                    autoComplete="tel"
-                    placeholder="01XXXXXXXXX"
-                    value={participant.mobile}
-                    onChange={(e) => update("mobile", e.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  বর্তমান অবস্থান <em>*</em>
-                  <input
-                    id="reg-location"
-                    name="location"
-                    placeholder="শহর / দেশ"
-                    maxLength={200}
-                    value={participant.location}
-                    onChange={(e) => update("location", e.target.value)}
-                  />
-                </label>
+                {fields
+                  .filter((f) => (f.step ?? 1) === 1)
+                  .map((f) => renderField(f))}
               </div>
               <div className="batch-lock">
                 <LockKeyhole size={13} />
@@ -355,109 +582,17 @@ export default function RegistrationForm({
           {step === 1 && (
             <div className="form-step-content">
               <div className="form-step-title">
-                <span>০২ / কারা আসছো একসাথে?</span>
+                <span>{text("step2.title", "০২ / কারা আসছো একসাথে?")}</span>
               </div>
-              <div className="family-option">
-                <span className="family-icon">
-                  <Heart size={20} />
-                </span>
-                <div>
-                  <b>জীবনসঙ্গী আসবেন?</b>
-                  <small>অতিরিক্ত ৳ {money(site.fees.spouse)}</small>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-label="জীবনসঙ্গী আসবেন"
-                  aria-checked={spouse === 1}
-                  className={`switch ${spouse ? "on" : ""}`}
-                  onClick={() => setSpouse(spouse ? 0 : 1)}
-                >
-                  <span />
-                </button>
-              </div>
-              <div className="family-option">
-                <span className="family-icon child-icon">
-                  <Baby size={21} />
-                </span>
-                <div>
-                  <b>কতজন ছোট্ট অতিথি?</b>
-                  <small>শিশু প্রতি ৳ {money(site.fees.child)}</small>
-                </div>
-                <div className="stepper">
-                  <button
-                    type="button"
-                    aria-label="শিশুর সংখ্যা কমাও"
-                    disabled={!children}
-                    onClick={() => setChildren(children - 1)}
-                  >
-                    <Minus size={15} />
-                  </button>
-                  <span>{bn(children)}</span>
-                  <button
-                    type="button"
-                    aria-label="শিশুর সংখ্যা বাড়াও"
-                    disabled={children >= 20}
-                    onClick={() => setChildren(children + 1)}
-                  >
-                    <Plus size={15} />
-                  </button>
-                </div>
-              </div>
-              <label className="field family-total">
-                মোট পরিবারের সদস্য
-                <input
-                  readOnly
-                  value={`${bn(1 + spouse + children)} জন (তোমাকেসহ)`}
-                />
-              </label>
-              <label className="field">
-                খাবারের পছন্দ
-                <select
-                  name="food"
-                  value={food}
-                  onChange={(e) => setFood(e.target.value)}
-                >
-                  <option>সাধারণ</option>
-                  <option>নিরামিষ</option>
-                  <option>বিশেষ অনুরোধ</option>
-                </select>
-              </label>
-              <div className="field tshirt-field">
-                <span>
-                  তোমার টি-শার্টের সাইজ <em>*</em>
-                </span>
-                <div className="size-options">
-                  {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((size) => (
-                    <button
-                      type="button"
-                      aria-pressed={participant.tshirt === size}
-                      className={participant.tshirt === size ? "active" : ""}
-                      key={size}
-                      onClick={() => update("tshirt", size)}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-                <small>এই সাইজটি মূল অংশগ্রহণকারী বন্ধুর জন্য।</small>
-              </div>
-              <label className="field">
-                বিশেষ অনুরোধ <span className="optional">ঐচ্ছিক</span>
-                <textarea
-                  rows={2}
-                  maxLength={600}
-                  placeholder="খাবারের অ্যালার্জি বা অন্য কোনো প্রয়োজন থাকলে জানাও"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </label>
+              {fields
+                .filter((f) => (f.step ?? 1) === 2)
+                .map((f) => renderField(f))}
             </div>
           )}
           {step === 2 && (
             <div className="form-step-content">
               <div className="form-step-title">
-                <span>০৩ / পেমেন্টের তথ্য</span>
+                <span>{text("step3.title", "০৩ / পেমেন্টের তথ্য")}</span>
                 <LockKeyhole size={14} />
               </div>
               {site.mode === "demo" && (
@@ -538,20 +673,21 @@ export default function RegistrationForm({
               )}
               <div className="field-grid">
                 <label className="field">
-                  প্রেরকের মোবাইল <em>*</em>
+                  {text("payment.sender_mobile", "যে নম্বর থেকে টাকা পাঠিয়েছ")}{" "}
+                  <em>*</em>
                   <input
                     name="senderMobile"
                     type="tel"
-                    placeholder="যে নম্বর থেকে পাঠিয়েছ"
+                    placeholder={text("payment.sender_mobile_hint", "যে নম্বর থেকে পাঠিয়েছ")}
                     value={senderMobile}
                     onChange={(e) => setSenderMobile(e.target.value)}
                   />
                 </label>
                 <label className="field">
-                  ট্রানজেকশন আইডি <em>*</em>
+                  {text("payment.transaction_id", "ট্রানজেকশন আইডি")} <em>*</em>
                   <input
                     name="transactionId"
-                    placeholder="যেমন: A7B8C9D0EF"
+                    placeholder={text("payment.transaction_id_hint", "যেমন: A7B8C9D0EF")}
                     maxLength={64}
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
@@ -570,15 +706,17 @@ export default function RegistrationForm({
                   onChange={(e) => setConsent(e.target.checked)}
                 />
                 <span>
-                  প্রদত্ত তথ্য সঠিক। পেমেন্ট যাচাইয়ের পরেই টিকিট পাব এবং গোপন
-                  টিকিটের লিংক সংরক্ষণ করব।
+                  {text(
+                    "consent.text",
+                    "প্রদত্ত তথ্য সঠিক। পেমেন্ট যাচাইয়ের পরেই টিকিট পাব এবং গোপন টিকিটের লিংক সংরক্ষণ করব।",
+                  )}
                 </span>
               </label>
             </div>
           )}
           <div className="form-fee-summary">
             <div>
-              <span>মোট নিবন্ধন ফি</span>
+              <span>{text("fee.label", "মোট নিবন্ধন ফি")}</span>
               <small>
                 বন্ধু {bn(1)}
                 {spouse ? ` + জীবনসঙ্গী ${bn(spouse)}` : ""}
@@ -637,7 +775,7 @@ export default function RegistrationForm({
           </div>
           <div className="form-footer-note">
             <LockKeyhole size={12} />
-            তথ্য শুধু আয়োজন ও পেমেন্ট যাচাইয়ের জন্য ব্যবহৃত হবে।
+            {text("privacy.note", "তথ্য শুধু আয়োজন ও পেমেন্ট যাচাইয়ের জন্য ব্যবহৃত হবে।")}
           </div>
         </form>
       )}

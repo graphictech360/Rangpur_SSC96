@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -50,6 +50,13 @@ export default function Home({ site, onTicket, navigate }: Props) {
     registration = section("registration"),
     schedule = section("schedule"),
     footer = section("footer");
+  const navItems = (site.nav || [])
+    .filter((n) => n.visible !== false)
+    .slice()
+    .sort((a, b) => a.order - b.order);
+  // টিকিট লিংকটি হেডারের ডান দিকের বোতাম হিসেবেই থাকে (মোবাইলেও সবসময় দেখা যায়)
+  const navLinks = navItems.filter((n) => n.kind !== "ticket");
+  const ticketItem = navItems.find((n) => n.kind === "ticket");
   const branding = section("branding"),
     ribbon = section("marquee"),
     festival = section("festival"),
@@ -62,14 +69,40 @@ export default function Home({ site, onTicket, navigate }: Props) {
   const items = site.schedule.filter(
     (x) => period === "সব" || x.period === period,
   );
-  const scrollTo = (id: string) => {
+  // সেকশনে যাওয়া: আগে মসৃণ স্ক্রল, না হলে হ্যাশ-লিংক (সব পরিবেশে কাজ করে)
+  const goTo = (id: string) => (e: ReactMouseEvent) => {
+    e.preventDefault();
     setMenu(false);
-    document.getElementById(id)?.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-      block: "start",
-    });
+    const target = document.getElementById(id);
+    if (!target) return;
+    try {
+      target.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+      });
+    } catch {
+      /* কিছু ব্রাউজারে/প্রিভিউ-ফ্রেমে স্মুথ স্ক্রল আটকে যায় */
+    }
+    // ফলব্যাক: সেকশন না এলে হ্যাশ-লিংক, তাতেও না হলে নিজেই হিসাব করে স্ক্রল
+    window.setTimeout(() => {
+      const box = target.getBoundingClientRect();
+      if (box.top < 0 || box.top > window.innerHeight * 0.6) {
+        window.location.hash = id;
+        if (document.getElementById(id) !== target) return;
+        const still = target.getBoundingClientRect();
+        if (still.top < 0 || still.top > window.innerHeight * 0.6) {
+          const y = window.scrollY + still.top - 96;
+          try {
+            window.scrollTo({ top: Math.max(y, 0), behavior: "auto" });
+          } catch {
+            window.scrollTo(0, Math.max(y, 0));
+          }
+        }
+      }
+    }, 600);
+    if (history.replaceState) history.replaceState(null, "", `#${id}`);
   };
   return (
     <div className="festival-page">
@@ -115,19 +148,37 @@ export default function Home({ site, onTicket, navigate }: Props) {
             className={menu ? "main-nav nav-open" : "main-nav"}
             aria-label="প্রধান নেভিগেশন"
           >
-            <button onClick={() => scrollTo("memories")}>আমাদের গল্প</button>
-            <button onClick={() => scrollTo("festival")}>আয়োজন</button>
-            <button onClick={() => scrollTo("schedule")}>সময়সূচি</button>
-            <button onClick={() => scrollTo("registration")}>নিবন্ধন</button>
+            {navLinks.map((item) =>
+              item.kind === "link" ? (
+                <a
+                  key={item.id}
+                  href={item.target || "#"}
+                  target={/^https?:/i.test(item.target) ? "_blank" : undefined}
+                  rel="noreferrer"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <a
+                  key={item.id}
+                  href={`#${item.target}`}
+                  onClick={goTo(item.target)}
+                >
+                  {item.label}
+                </a>
+              ),
+            )}
           </nav>
           <div className="header-actions">
-            <button
-              className="button button-ghost ticket-nav"
-              onClick={() => onTicket()}
-            >
-              <Ticket size={17} />
-              <span>আমার টিকিট</span>
-            </button>
+            {ticketItem && (
+              <button
+                className="button button-ghost ticket-nav"
+                onClick={() => onTicket()}
+              >
+                <Ticket size={17} />
+                <span>{ticketItem.label || "আমার টিকিট"}</span>
+              </button>
+            )}
             <button
               className="icon-button mobile-menu"
               aria-label={menu ? "মেনু বন্ধ করুন" : "মেনু খুলুন"}
@@ -181,19 +232,21 @@ export default function Home({ site, onTicket, navigate }: Props) {
               </h2>
               <p className="hero-description">{hero.body}</p>
               <div className="hero-buttons">
-                <button
+                <a
                   className="button button-primary"
-                  onClick={() => scrollTo("registration")}
+                  href="#registration"
+                  onClick={goTo("registration")}
                 >
-                  চলো, আবার একসাথে!
+                  নিবন্ধন করি
                   <ArrowUpRight size={21} />
-                </button>
-                <button
+                </a>
+                <a
                   className="text-button"
-                  onClick={() => scrollTo("schedule")}
+                  href="#schedule"
+                  onClick={goTo("schedule")}
                 >
                   দিনের আয়োজন <ArrowRight size={18} />
-                </button>
+                </a>
               </div>
               <div className="hero-event-info">
                 <div>
@@ -654,12 +707,13 @@ export default function Home({ site, onTicket, navigate }: Props) {
                   />
                 )}
               </div>
-              <button
+              <a
                 className="button button-primary"
-                onClick={() => scrollTo("registration")}
+                href="#registration"
+                onClick={goTo("registration")}
               >
                 নিবন্ধন করি <ArrowUpRight size={20} />
-              </button>
+              </a>
             </div>
             <div className="footer-bottom">
               {branding && (

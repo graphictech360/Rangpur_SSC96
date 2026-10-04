@@ -137,6 +137,75 @@ export const seedSections = [
     order: 5 + i,
   })),
 ];
+/** নিবন্ধন ফর্মের ঘর — অ্যাডমিন প্যানেল থেকে যোগ/বদল/মুছে ফেলা যায় (শুরুতে ফাঁকা) */
+// নিবন্ধন ফর্মের মূল ঘরগুলো — অ্যাডমিন প্যানেল থেকেই এডিট/লুকানো যায়
+export const seedFormFields = [
+  ["photo", "নিজের ছবি", "photo", "", "", true, true, false, 1, 10],
+  ["name", "নাম", "text", "তোমার পুরো নাম", "", true, true, true, 1, 20],
+  ["school", "স্কুলের নাম", "text", "যে স্কুল থেকে এসএসসি পাস করেছ", "", true, true, false, 1, 30],
+  ["ssc_roll", "এসএসসি রোল", "text", "এসএসসি ১৯৯৬ রোল", "", true, true, false, 1, 40],
+  ["ssc_registration", "এসএসসি রেজিস্ট্রেশন", "text", "রেজিস্ট্রেশন নম্বর", "", false, true, false, 1, 50],
+  ["mobile", "মোবাইল নম্বর", "tel", "01XXXXXXXXX", "", true, true, true, 1, 60],
+  ["location", "বর্তমান অবস্থান", "text", "শহর / দেশ", "", true, true, false, 1, 70],
+  ["family", "কারা আসছো একসাথে?", "family", "", "", false, true, false, 2, 80],
+  ["tshirt", "তোমার টি-শার্টের সাইজ", "tshirt", "", "এই সাইজটি মূল অংশগ্রহণকারী বন্ধুর জন্য।", true, true, false, 2, 90],
+].map(([key, label, kind, placeholder, help, required, visible, locked, step, order], i) => ({
+  id: `00000000-0000-4000-8000-${String(100 + i).padStart(12, "0")}`,
+  key,
+  label,
+  kind,
+  placeholder,
+  help,
+  options: [],
+  maxLength: 200,
+  required,
+  visible,
+  step,
+  isBase: true,
+  isLocked: locked,
+  order,
+}));
+
+export const seedNavItems = [
+  ["section", "আমাদের গল্প", "memories", 10],
+  ["section", "আয়োজন", "festival", 20],
+  ["section", "সময়সূচি", "schedule", 30],
+  ["section", "নিবন্ধন", "registration", 40],
+  ["ticket", "আমার টিকিট", "", 50],
+].map(([kind, label, target, order], i) => ({
+  id: `00000000-0000-4000-9000-${String(100 + i).padStart(12, "0")}`,
+  kind,
+  label,
+  target,
+  order,
+  visible: true,
+}));
+
+export const seedFormTexts = Object.fromEntries(
+  [
+    ["card.eyebrow", "YOUR SEAT IS WAITING"],
+    ["card.title", "বন্ধু, নামটা লিখে ফেলো!"],
+    ["step1.label", "পরিচয়"],
+    ["step1.title", "০১ / তোমার পরিচয়"],
+    ["step2.label", "পরিবার"],
+    ["step2.title", "০২ / কারা আসছো একসাথে?"],
+    ["step3.label", "পেমেন্ট"],
+    ["step3.title", "০৩ / পেমেন্টের তথ্য"],
+    ["fee.label", "মোট নিবন্ধন ফি"],
+    ["payment.sender_mobile", "যে নম্বর থেকে টাকা পাঠিয়েছ"],
+    ["payment.sender_mobile_hint", "যে নম্বর থেকে পাঠিয়েছ"],
+    ["payment.transaction_id", "ট্রানজেকশন আইডি"],
+    ["payment.transaction_id_hint", "যেমন: A7B8C9D0EF"],
+    ["family.total", "মোট পরিবারের সদস্য"],
+    ["family.spouse", "জীবনসঙ্গী আসবেন?"],
+    ["family.children", "কতজন ছোট্ট অতিথি?"],
+    ["privacy.note", "তথ্য শুধু আয়োজন ও পেমেন্ট যাচাইয়ের জন্য ব্যবহৃত হবে।"],
+    ["consent.text", "প্রদত্ত তথ্য সঠিক এবং আমি আয়োজনের নিয়ম মেনে চলব।"],
+  ],
+);
+
+export const seedNavFallback = seedNavItems;
+
 export const seedSchedule = [
   [
     "09:00",
@@ -248,6 +317,9 @@ export function initialState() {
     fees: { friend: 1499, spouse: 500, child: 200 },
     sections: seedSections,
     schedule: seedSchedule,
+    formFields: seedFormFields,
+    navItems: seedNavItems,
+    formTexts: seedFormTexts,
     accounts,
     registrations,
     devices: [],

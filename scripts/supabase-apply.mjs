@@ -104,39 +104,36 @@ async function verify() {
   };
   const [tables] = await rows(
     `select json_build_object(
-       'schemas', (select count(*) from pg_namespace where nspname in
-         ('database','admin','event','content','registration','payment','gate','report','guide')),
        'tables', (select count(*) from information_schema.tables where table_type='BASE TABLE'
-         and table_schema in ('database','admin','event','content','registration','payment','gate','guide')),
-       'with_rls', (select count(*) from pg_tables
-         where schemaname in ('database','admin','event','content','registration','payment','gate','guide') and rowsecurity),
-       'report_views', (select count(*) from information_schema.views where table_schema='report'),
+         and table_schema='public' and table_name in ('participants', 'registrations', 'user_links', 'payments', 'payment_accounts', 'refunds', 'admin_users', 'admin_login_events', 'admin_password_resets', 'admin_email_outbox', 'admin_devices', 'admin_audit_logs', 'gate_tickets', 'gate_checkins', 'content_sections', 'content_schedule', 'event_events', 'event_fees', 'event_contacts', 'guide_tables', 'guide_flows', 'database_schemas', 'database_settings', 'database_migrations')),
+       'with_rls', (select count(*) from pg_tables where schemaname='public' and rowsecurity
+         and tablename in ('participants', 'registrations', 'user_links', 'payments', 'payment_accounts', 'refunds', 'admin_users', 'admin_login_events', 'admin_password_resets', 'admin_email_outbox', 'admin_devices', 'admin_audit_logs', 'gate_tickets', 'gate_checkins', 'content_sections', 'content_schedule', 'event_events', 'event_fees', 'event_contacts', 'guide_tables', 'guide_flows', 'database_schemas', 'database_settings', 'database_migrations')),
+       'views', (select count(*) from information_schema.views where table_schema='public'
+         and table_name in ('report_summary', 'report_school_wise', 'report_daily', 'report_attendance', 'report_refunds', 'report_tshirt_sizes', 'report_food_preferences', 'report_collectors', 'guide_overview', 'guide_relations', 'guide_schemas', 'guide_functions', 'database_health')),
        'functions', (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-                     where p.prosecdef and (n.nspname='database' or (n.nspname='public' and p.proname in (
+                     where p.prosecdef and n.nspname='public' and p.proname in (
                        'public_site','submit_registration','ticket_status','staff_identity','admin_overview',
                        'admin_mutate','register_device','device_state','check_in','guide_overview',
-                       'log_login','request_password_reset')))),
-       'content', (select count(*) from content.sections),
-       'schedule', (select count(*) from content.schedule),
-       'accounts', (select count(*) from payment.accounts),
-       'contacts', (select count(*) from event.contacts),
-       'admins', (select count(*) from admin.admins),
-       'flow_rows', (select count(*) from guide.flows),
-       'table_rows', (select count(*) from guide.tables),
+                       'log_login','request_password_reset','complete_password_reset')),
+       'content', (select count(*) from content_sections),
+       'schedule', (select count(*) from content_schedule),
+       'accounts', (select count(*) from payment_accounts),
+       'contacts', (select count(*) from event_contacts),
+       'admins', (select count(*) from admin_users),
+       'flow_rows', (select count(*) from guide_flows),
+       'table_rows', (select count(*) from guide_tables),
        'table_comments', (select count(*) from pg_description d join pg_class c on c.oid=d.objoid
                           join pg_namespace n on n.oid=c.relnamespace
-                          where n.nspname in ('database','admin','event','content','registration','payment','gate','guide') and d.objsubid=0),
+                          where n.nspname='public' and d.objsubid=0 and c.relname in ('participants', 'registrations', 'user_links', 'payments', 'payment_accounts', 'refunds', 'admin_users', 'admin_login_events', 'admin_password_resets', 'admin_email_outbox', 'admin_devices', 'admin_audit_logs', 'gate_tickets', 'gate_checkins', 'content_sections', 'content_schedule', 'event_events', 'event_fees', 'event_contacts', 'report_summary', 'report_school_wise', 'report_daily', 'report_attendance', 'report_refunds', 'report_tshirt_sizes', 'report_food_preferences', 'report_collectors', 'guide_tables', 'guide_flows', 'guide_overview', 'guide_relations', 'guide_schemas', 'guide_functions', 'database_schemas', 'database_settings', 'database_migrations', 'database_health')),
        'column_comments', (select count(*) from pg_description d join pg_class c on c.oid=d.objoid
                            join pg_namespace n on n.oid=c.relnamespace
-                           where n.nspname in ('database','admin','event','content','registration','payment','gate','guide') and d.objsubid>0),
-       'indexes', (select count(*) from pg_indexes
-                   where schemaname in ('database','admin','event','content','registration','payment','gate','guide')),
+                           where n.nspname='public' and d.objsubid>0 and c.relname in ('participants', 'registrations', 'user_links', 'payments', 'payment_accounts', 'refunds', 'admin_users', 'admin_login_events', 'admin_password_resets', 'admin_email_outbox', 'admin_devices', 'admin_audit_logs', 'gate_tickets', 'gate_checkins', 'content_sections', 'content_schedule', 'event_events', 'event_fees', 'event_contacts', 'report_summary', 'report_school_wise', 'report_daily', 'report_attendance', 'report_refunds', 'report_tshirt_sizes', 'report_food_preferences', 'report_collectors', 'guide_tables', 'guide_flows', 'guide_overview', 'guide_relations', 'guide_schemas', 'guide_functions', 'database_schemas', 'database_settings', 'database_migrations', 'database_health')),
+       'indexes', (select count(*) from pg_indexes where schemaname='public' and tablename in ('participants', 'registrations', 'user_links', 'payments', 'payment_accounts', 'refunds', 'admin_users', 'admin_login_events', 'admin_password_resets', 'admin_email_outbox', 'admin_devices', 'admin_audit_logs', 'gate_tickets', 'gate_checkins', 'content_sections', 'content_schedule', 'event_events', 'event_fees', 'event_contacts', 'guide_tables', 'guide_flows', 'database_schemas', 'database_settings', 'database_migrations')),
        'triggers', (select count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid
                     join pg_namespace n on n.oid=c.relnamespace
-                    where not t.tgisinternal and n.nspname in ('database','admin','event','content','registration','payment','gate')),
+                    where not t.tgisinternal and n.nspname='public' and c.relname in ('participants', 'registrations', 'user_links', 'payments', 'payment_accounts', 'refunds', 'admin_users', 'admin_login_events', 'admin_password_resets', 'admin_email_outbox', 'admin_devices', 'admin_audit_logs', 'gate_tickets', 'gate_checkins', 'content_sections', 'content_schedule', 'event_events', 'event_fees', 'event_contacts', 'guide_tables', 'guide_flows', 'database_schemas', 'database_settings', 'database_migrations')),
        'exposed', (select count(*) from pg_namespace where nspname in
-         ('database','admin','event','content','registration','payment','gate','report','guide')
-         and nspname in (select unnest(string_to_array(current_setting('pgrst.db_schemas', true), ','))))
+         ('user','database','admin','event','content','payment','gate','report','guide'))
      ) as report`,
   );
   return tables.report ?? tables;
@@ -157,7 +154,7 @@ async function findUser(email) {
 
 async function setRole(id, role, displayName, email) {
   await sql(
-    `insert into admin.admins(user_id,role,display_name,is_active)
+    `insert into admin_users(user_id,role,display_name,is_active)
      values ('${id}','${role}','${displayName.replace(/'/g, "''")}',true)
      on conflict(user_id) do update set role=excluded.role, display_name=excluded.display_name, is_active=true;`,
   );
@@ -172,19 +169,20 @@ if (!verifyOnly) {
     ["11_event.sql", "event সেকশন: অনুষ্ঠান, ফি, যোগাযোগ নম্বর"],
     ["12_content.sql", "content সেকশন: সেকশন ও সময়সূচি"],
     [
-      "13_registration.sql",
-      "registration সেকশন: অংশগ্রহণকারী, নিবন্ধন, গোপন লিংক",
+      "13_user.sql",
+      "মানুষের টেবিল: participants, registrations, user_links",
     ],
-    ["14_payment.sql", "payment সেকশন: Send Money নম্বর, পেমেন্ট, রিফান্ড"],
-    ["15_admin.sql", "admin সেকশন: অ্যাডমিন টেবিল, লগইন, রিসেট, ডিভাইস, অডিট"],
-    ["16_gate.sql", "gate সেকশন: QR টিকিট ও চেক-ইন"],
-    ["17_report.sql", "report সেকশন: হিসাবের ভিউ"],
-    ["18_functions.sql", "database টুলবক্স ও হিসাব-ইঞ্জিন"],
+    ["14_payment.sql", "পেমেন্ট টেবিল: payments, payment_accounts, refunds"],
+    ["15_admin.sql", "অ্যাডমিন টেবিল: admin_*"],
+    ["16_gate.sql", "গেট টেবিল: gate_tickets, gate_checkins"],
+    ["17_report.sql", "report_* ভিউ: হিসাবের ছবি"],
+    ["18_functions.sql", "সাধারণ টুলবক্স ও হিসাব-ইঞ্জিন (public)"],
     ["19_rules.sql", "নিয়ম ও প্রতিক্রিয়া (ট্রিগার)"],
-    ["20_guide.sql", "guide সেকশন: গঠন-বর্ণনা"],
+    ["20_guide.sql", "guide_* ভিউ: গঠন-বর্ণনা"],
     ["21_api.sql", "public RPC দরজাগুলো"],
     ["22_seed.sql", "শুরুর ডেটা, টেবিল-বর্ণনা ও ১৬টি কার্য-প্রবাহ"],
-    ["23_harden.sql", "নিরাপত্তা: সব টেবিলে RLS চালু, বাইরের অনুমতি বন্ধ"],
+    ["23_harden.sql", "নিরাপত্তা: public-এর সব টেবিলে RLS, বাইরের অনুমতি বন্ধ"],
+    ["24_photos.sql", "ছবি: Storage bucket, photo_url কলাম ও ছবিসহ RPC"],
   ];
   for (const [file, label] of steps) await runFile(file, label);
 }
@@ -223,9 +221,9 @@ if (missing.length) {
 }
 if (ready.length) {
   const list = await sql(
-    `select u.email, s.role, s.display_name, s.is_active
-       from admin.admins a left join auth.users u on u.id = a.user_id
-      order by a.role, a.email`,
+    `select u.email, a.role, a.display_name, a.is_active
+       from admin_users a left join auth.users u on u.id = a.user_id
+      order by a.role, u.email`,
     { readOnly: true },
   );
   console.log("\nবর্তমান স্টাফ তালিকা:");
@@ -238,7 +236,7 @@ if (ready.length) {
 const report = await verify();
 console.log("\n=== যাচাই ===");
 console.log(
-  `সেকশন-স্কিমা: ${report.schemas} | টেবিল: ${report.tables} (RLS চালু: ${report.with_rls}) | রিপোর্ট ভিউ: ${report.report_views}`,
+  `public-এর টেবিল: ${report.tables} (RLS চালু: ${report.with_rls}) | হিসাবের ভিউ: ${report.views}`,
 );
 console.log(`SECURITY DEFINER ফাংশন: ${report.functions}`);
 console.log(
@@ -249,11 +247,11 @@ console.log(
 );
 if (Number(report.exposed) > 0)
   console.log(
-    "⚠️  সতর্কতা: কোনো সেকশন-স্কিমা Data API-তে exposed — Settings → API → Exposed schemas থেকে সরান।",
+    "⚠️  সতর্কতা: পুরোনো সেকশন-স্কিমা এখনো আছে — 00_reset.sql চালান।",
   );
 else
   console.log(
-    "সেকশন-স্কিমাগুলো Data API-তে exposed নয় ✅ (Settings → API-তেও মিলিয়ে নিন)",
+    "সব টেবিল একটিমাত্র স্কিমায় (public) · Data API-তে সারি পড়া বন্ধ ✅",
   );
 
 // অ্যানন অনুমতি যাচাই: পাবলিক RPC চলে, সরাসরি টেবিল পড়া যায় না
@@ -264,7 +262,7 @@ const anonChecks = await sql(
      'ticket_rpc', (select has_function_privilege('anon','public.ticket_status(text)','execute')),
      'admin_rpc', (select has_function_privilege('anon','public.admin_mutate(text,jsonb)','execute')),
      'checkin_rpc', (select has_function_privilege('anon','public.check_in(text,text)','execute')),
-     'direct_select', (select has_table_privilege('anon','registration.participants','select'))
+     'direct_select', (select has_table_privilege('anon','public.participants','select'))
    ) as checks`,
   { readOnly: true },
 );

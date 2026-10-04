@@ -19,7 +19,14 @@
 }
 html {
   scroll-behavior: smooth;
+}
+
+/* হ্যাশ-লিংকে (#registration) লাফ দিলে স্টিকি হেডারের নিচে ঢাকা না পড়ার জন্য */
+html {
   scroll-padding-top: 110px;
+}
+[id] {
+  scroll-margin-top: 104px;
 }
 body {
   margin: 0;
@@ -317,13 +324,24 @@ summary:focus-visible {
   gap: 26px;
   align-items: center;
 }
+.main-nav a,
 .main-nav button {
   font-size: 15.67px;
   font-weight: 500;
   padding: 8px 0;
   position: relative;
   color: #636c5e;
+  text-decoration: none;
 }
+.main-nav a:hover,
+.main-nav button:hover {
+  color: var(--ink, #2b2f26);
+}
+.main-nav a.nav-cta {
+  color: var(--green, #1f6b3f);
+  font-weight: 700;
+}
+.main-nav a:after,
 .main-nav button:after {
   content: "";
   position: absolute;
@@ -335,6 +353,7 @@ summary:focus-visible {
   transform: scaleX(0);
   transition: 0.2s;
 }
+.main-nav a:hover:after,
 .main-nav button:hover:after {
   transform: scaleX(1);
 }
@@ -2421,6 +2440,43 @@ summary:focus-visible {
   font-size: 12.67px;
   color: #a3ab8e;
 }
+.receipt-holder {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+.receipt-photo {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #eef1e2;
+  box-shadow:
+    0 0 0 3px #fffdf3,
+    0 0 0 5px #d9cfa4,
+    0 8px 18px rgba(21, 47, 44, 0.14);
+}
+.receipt-photo.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #86977a;
+}
+.receipt-holder-data {
+  min-width: 0;
+}
+.receipt-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 13.67px;
+  color: #7d8a6d;
+  letter-spacing: 0.3px;
+}
 .ticket-receipt-main > h2 {
   font-size: 27px;
   font-weight: 600;
@@ -3322,6 +3378,86 @@ summary:focus-visible {
   width: 52px;
   height: 52px;
   font-size: 25.67px;
+}
+.participant-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.participant-avatar.large img {
+  box-shadow: 0 0 0 2px #f4f1e2, 0 0 0 3px #cfd8b8;
+}
+/* ── ফর্মের ছবি (যেকোনো সাইজ → ঠিক ৫১২×৫১২ ছোট ছবি) ── */
+.photo-field {
+  gap: 8px;
+}
+.photo-label {
+  font-size: 14.67px;
+  font-weight: 600;
+  color: var(--ink, #22302b);
+}
+.photo-label em {
+  color: #b4442f;
+  font-style: normal;
+}
+.photo-picker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: #fbf8ec;
+  border: 1px dashed #cfc9ab;
+  border-radius: 14px;
+  padding: 12px;
+}
+.photo-preview {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #eef1e2;
+  color: #86977a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px #dcd8bd;
+}
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-preview.busy {
+  opacity: 0.75;
+}
+.photo-file {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1 1 220px;
+}
+.photo-actions .button {
+  font-size: 14.67px;
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .organizer-notes {
   background: #eeeeda;
@@ -6939,4 +7075,753 @@ summary:focus-visible {
 }
 .receipt-fine-details span {
   overflow-wrap: anywhere;
+}
+
+/* ── গেটের ফলাফলে বড় ছবি (স্টাফ যেন সহজে চিনতে পারে) ── */
+.checkin-result h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.participant-avatar.checkin-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 27px;
+  box-shadow:
+    0 0 0 3px #fffdf3,
+    0 0 0 5px #cfd8b8;
+}
+@media print {
+  .receipt-photo {
+    box-shadow: 0 0 0 2px #d9cfa4;
+  }
+  .photo-field,
+  .photo-actions {
+    display: none !important;
+  }
+}
+
+/* ── নিবন্ধনের পর: গোপন লিংক ও রিকভারি কোড স্পষ্টভাবে দেখানো ───────── */
+.success-keys {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 16px;
+  text-align: left;
+}
+.key-row {
+  border: 1px dashed rgba(31, 107, 63, 0.42);
+  background: rgba(31, 107, 63, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+.key-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14.67px;
+  font-weight: 700;
+  color: #1f6b3f;
+}
+.key-value {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.2px;
+  line-height: 1.5;
+  color: #33392c;
+  word-break: break-all;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  user-select: all;
+  max-height: 96px;
+  overflow: auto;
+}
+.key-value.mono {
+  letter-spacing: 0.4px;
+}
+.key-copy {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14.67px;
+  font-weight: 600;
+  color: #1f6b3f;
+  background: #fff;
+  border: 1px solid rgba(31, 107, 63, 0.35);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+.key-copy:hover {
+  background: rgba(31, 107, 63, 0.1);
+}
+
+/* ── টিকিট খোঁজার ৩ ধাপ ───────────────────────────────────────── */
+.ticket-find-steps {
+  margin: 10px 0 12px;
+  padding-left: 20px;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  font-size: 15.33px;
+  line-height: 1.6;
+  color: #4a5142;
+}
+.ticket-find-steps b {
+  color: #2b3126;
+}
+.ticket-privacy-note {
+  font-size: 14.67px;
+  line-height: 1.6;
+  color: #6b5b2a;
+  background: rgba(233, 201, 72, 0.16);
+  border: 1px solid rgba(233, 201, 72, 0.5);
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+/* ── নেভ-এর “নিবন্ধন” লিংক আলাদা করে চেনা যায় ─────────────────── */
+.main-nav a.nav-cta {
+  background: rgba(31, 107, 63, 0.1);
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+.main-nav a.nav-cta:hover {
+  background: rgba(31, 107, 63, 0.18);
+}
+@media (max-width: 900px) {
+  .main-nav a.nav-cta {
+    background: none;
+    padding: 8px 0;
+  }
+}
+
+/* ── মেইলের লিংক থেকে আসার বার্তা (লগইন পেজ) ───────────────────── */
+.form-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(31, 107, 63, 0.1);
+  border: 1px solid rgba(31, 107, 63, 0.35);
+  color: #1f6b3f;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 15.33px;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+/* ── প্যানেলের হেডারে: ইমেইল খবর চালু কি না ─────────────────────── */
+.connection-status.notify-status {
+  cursor: help;
+}
+.connection-status.notify-on i {
+  background: #1f6b3f;
+  box-shadow: 0 0 0 3px rgba(31, 107, 63, 0.18);
+}
+.connection-status.notify-off {
+  color: #8a6d1f;
+  border-color: rgba(233, 201, 72, 0.6);
+  background: rgba(233, 201, 72, 0.14);
+}
+.connection-status.notify-off i {
+  background: #e9c948;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   নিবন্ধন ফর্ম: সব ঘর উপর-নিচে (কোনো ঘর পাশাপাশি নয়) — সব স্ক্রিনে
+   ══════════════════════════════════════════════════════════════════ */
+.registration-card .field-grid,
+.registration-card .field-grid.two-col,
+.form-step-content .field-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 14px !important;
+}
+.registration-card .field,
+.registration-card .field-full {
+  grid-column: 1 / -1 !important;
+  width: 100%;
+  min-width: 0;
+}
+.registration-card .field input,
+.registration-card .field select,
+.registration-card .field textarea {
+  width: 100%;
+}
+/* পরিবারের সদস্য যোগ-বিয়োগের সারি: ছোট স্ক্রিনেও যেন ভেঙে যায় না */
+.registration-card .family-option {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+/* টি-শার্ট সাইজের বোতামগুলো মোবাইলে দুই সারিতে */
+.registration-card .size-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* পেমেন্টের মাধ্যম বাছাই — ছোট স্ক্রিনে এক কলাম */
+.registration-card .payment-options,
+.registration-card .payment-option-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* নিবন্ধন কার্ড কখনোই স্ক্রিনের চেয়ে বড় হবে না */
+.registration-card,
+.registration-panel,
+.form-step-content {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.registration-card img,
+.registration-card svg {
+  max-width: 100%;
+}
+
+/* ── অ্যাডমিনের “ফর্মের ঘর” পেজ ─────────────────────────────────── */
+.form-field-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.form-field-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.form-field-card.field-hidden {
+  opacity: 0.72;
+  border-style: dashed;
+}
+.form-field-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.form-field-head > svg {
+  margin-top: 3px;
+  color: #a0a28e;
+  flex: 0 0 auto;
+}
+.form-field-head h3 {
+  margin: 0 0 2px;
+  font-size: 17.33px;
+}
+.form-field-head p {
+  margin: 0;
+  font-size: 13.33px;
+  color: #6b7261;
+  overflow-wrap: anywhere;
+}
+.form-field-head .hidden-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.form-field-head code {
+  background: rgba(31, 107, 63, 0.08);
+  border-radius: 6px;
+  padding: 1px 5px;
+  font-size: 12.67px;
+}
+.req-mark {
+  color: #b4451f;
+  font-style: normal;
+}
+.form-field-card .content-card-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.form-field-card .content-card-actions .button,
+.form-field-card .content-card-actions .icon-button {
+  min-height: 40px;
+}
+.empty-note {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.empty-note p {
+  margin: 4px 0 0;
+  color: #6b7261;
+  font-size: 14.67px;
+  line-height: 1.7;
+}
+.form-field-stats .stat-grid ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13.33px;
+  color: #5c6353;
+}
+.report-subnote {
+  margin: 2px 0 8px;
+  font-size: 13.33px;
+  color: #6b7261;
+}
+.dynamic-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.dynamic-field-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.field-help {
+  display: block;
+  margin-top: 4px;
+  color: #8b8f7d;
+  font-size: 12.67px;
+  line-height: 1.6;
+}
+.field .checkbox-row,
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.67px;
+  line-height: 1.5;
+}
+.checkbox-row input[type="checkbox"] {
+  width: auto !important;
+  flex: 0 0 auto;
+  accent-color: #1f6b3f;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   সব সেকশন মোবাইলে ঠিকভাবে খাপ খাওয়ানো — ধাপে ধাপে ছোট হতে থাকে
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ছবি/ভিডিও কখনো বাইরে বেরোবে না */
+img,
+video,
+iframe,
+svg,
+canvas {
+  max-width: 100%;
+}
+.main-nav,
+.hero,
+.section,
+.festival,
+.schedule,
+.faq,
+.footer,
+.ticket-panel,
+.registration-panel {
+  max-width: 100%;
+}
+/* লম্বা ইংরেজি শব্দ/লিংক বাক্স ভেঙে না ফেলে */
+p,
+li,
+h1,
+h2,
+h3,
+h4,
+td,
+th,
+a,
+span,
+code {
+  overflow-wrap: anywhere;
+}
+/* টেবিল সবসময় স্ক্রল করা যাবে, চাপাচাপি হবে না */
+.table-scroll,
+.admin-table-wrap,
+.report-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+table {
+  max-width: 100%;
+}
+
+/* মাঝারি স্ক্রিন (ট্যাবলেট) — দুই কলামের সব জায়গা এক কলাম */
+@media (max-width: 1024px) {
+  .hero,
+  .story,
+  .festival,
+  .registration-grid,
+  .schedule-grid,
+  .faq-grid,
+  .footer-grid,
+  .ticket-grid,
+  .admin-main,
+  .split,
+  .two-col {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ticket-panel,
+  .registration-panel {
+    order: unset;
+  }
+}
+
+/* ছোট ট্যাবলেট ও বড় ফোন */
+@media (max-width: 860px) {
+  .main-nav {
+    flex-wrap: wrap;
+    gap: 8px 6px;
+  }
+  .main-nav a,
+  .nav-cta,
+  .main-nav button {
+    font-size: 14px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  .admin-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    transform: translateX(-102%);
+    transition: transform 0.22s ease;
+    width: min(300px, 86vw);
+    overflow-y: auto;
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+  .admin-topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .admin-section-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .admin-section-toolbar .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .stat-cards,
+  .stat-grid,
+  .report-grid,
+  .account-editor-grid,
+  .device-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* মোবাইল — সব এক কলাম, বড় লেখা পড়ার মতো */
+@media (max-width: 640px) {
+  .hero {
+    padding: 26px 16px 30px;
+  }
+  .hero-title,
+  .main-heading {
+    font-size: clamp(30px, 10vw, 44px);
+    line-height: 1.16;
+  }
+  .section-heading .section-title,
+  .section-title {
+    font-size: clamp(23px, 7vw, 30px);
+    line-height: 1.3;
+  }
+  .section,
+  .festival,
+  .schedule,
+  .faq {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .registration-card {
+    padding: 20px 14px;
+    border-radius: 18px;
+  }
+  .form-steps b {
+    display: none; /* ছোট স্ক্রিনে শুধু নাম্বার-বৃত্ত দেখাবে, চাপাচাপি নয় */
+  }
+  .dialog-body {
+    padding: 14px;
+  }
+  .dialog {
+    width: 100%;
+    max-width: 100vw;
+    border-radius: 16px 16px 0 0;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+  .button,
+  .button-primary,
+  .button-outline {
+    min-height: 46px;
+    font-size: 15.33px;
+  }
+  .size-options {
+    gap: 7px;
+  }
+  .size-options button {
+    min-width: 46px;
+    min-height: 40px;
+  }
+  .success-keys .key-value,
+  .ticket-link-box {
+    font-size: 12.67px;
+    overflow-wrap: anywhere;
+  }
+  .ticket-panel,
+  .receipt {
+    padding: 16px 13px;
+  }
+  .receipt-qr {
+    width: min(210px, 62vw);
+  }
+  .admin-panel-card {
+    padding: 14px !important;
+  }
+  .form-field-card .content-card-actions {
+    display: grid;
+    grid-template-columns: 44px 44px minmax(0, 1fr);
+  }
+  .form-field-card .content-card-actions .button {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
+  .table-scroll table {
+    min-width: 620px;
+  }
+}
+
+/* খুব ছোট ফোন (৩৫০ px-এর নিচে) */
+@media (max-width: 360px) {
+  .hero-title,
+  .main-heading {
+    font-size: 27px;
+  }
+  .form-steps {
+    gap: 4px;
+  }
+  .registration-card {
+    padding: 16px 11px;
+  }
+}
+
+/* টি-শার্ট সাইজের বোতাম: নিজের আকারেই থাকবে, টানা-প্রসারিত হবে না */
+.registration-card .size-options button,
+.size-options button {
+  flex: 0 0 auto;
+  min-width: 52px;
+}
+
+/* “ফর্মের ঘর” কার্ডের বোতামগুলো একসাথে বাঁ দিকে */
+.form-field-card .content-card-actions {
+  justify-content: flex-start;
+  gap: 8px;
+}
+.form-field-card .content-card-actions .icon-button {
+  margin: 0;
+}
+.form-field-stats h3 {
+  margin: 0 0 10px;
+}
+.form-field-stats .stat-grid {
+  display: grid;
+  gap: 14px;
+}
+.form-field-stats .stat-grid > div {
+  display: grid;
+  gap: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ফর্মের ঘর: টেনে সাজানো, মূল ঘরের ব্যাজ, ফর্মের লেখা ও হেডার প্যানেল
+   ══════════════════════════════════════════════════════════════════ */
+.form-field-card {
+  cursor: grab;
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.form-field-card:active { cursor: grabbing; }
+.form-field-card.dragging { opacity: 0.45; transform: scale(0.99); }
+.form-field-card.drag-over,
+.nav-item-row.drag-over {
+  border-color: var(--brand, #0f766e);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+}
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted, #6b7280);
+  cursor: grab;
+  padding: 2px 4px;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.08);
+}
+.form-field-card .form-field-head { gap: 10px; }
+.field-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+.step-badge,
+.base-badge,
+.lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.step-badge { background: rgba(15, 118, 110, 0.12); color: #0f5f57; }
+.base-badge { background: rgba(180, 83, 9, 0.14); color: #92400e; }
+.lock-badge { background: rgba(146, 64, 14, 0.12); color: #7c2d12; }
+.field-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--muted, #6b7280);
+}
+.form-field-card.field-base { border-left: 3px solid rgba(180, 83, 9, 0.5); }
+.form-texts-card h3 { display: flex; align-items: center; gap: 7px; }
+.form-texts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.form-texts-grid .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.form-texts-grid .field .button { align-self: flex-start; }
+.admin-note { font-size: 0.8rem; color: var(--muted, #6b7280); margin-top: 6px; }
+.editor-note {
+  background: rgba(180, 83, 9, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: #7c2d12;
+}
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 10px 0 14px;
+  flex-wrap: wrap;
+}
+.logo-preview {
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.logo-actions { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; }
+.logo-actions .button { align-self: flex-start; cursor: pointer; }
+.header-nav-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.header-nav-head h3 { display: flex; align-items: center; gap: 7px; margin: 0; }
+.nav-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  flex: 1 1 420px;
+}
+.nav-add-row select,
+.nav-add-row input { min-width: 150px; flex: 1 1 150px; }
+.nav-item-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.nav-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  background: rgba(255, 255, 255, 0.7);
+  cursor: grab;
+}
+.nav-item-row.nav-item-hidden { opacity: 0.55; }
+.nav-item-row b { font-size: 0.95rem; }
+.nav-kind {
+  font-size: 0.75rem;
+  color: var(--muted, #6b7280);
+  background: rgba(15, 118, 110, 0.08);
+  padding: 2px 8px;
+  border-radius: 999px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-item-actions { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .form-texts-grid { grid-template-columns: minmax(0, 1fr); }
+  .nav-item-row { flex-wrap: wrap; }
+  .nav-item-actions { margin-left: 0; }
+  .field-badges { justify-content: flex-start; margin-left: 0; }
+}
+
+.form-step-group { margin-bottom: 18px; }
+.form-step-group-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #0f5f57;
+  background: rgba(15, 118, 110, 0.08);
+  border-radius: 10px;
+  padding: 7px 12px;
+  margin: 0 0 10px;
+}
+/* অংশগ্রহণকারীর ছবি বদলানোর সারি (অ্যাডমিন প্যানেল) */
+.photo-editor-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.photo-editor-preview {
+  width: 76px;
+  height: 76px;
+  border-radius: 16px;
+  background: rgba(15, 118, 110, 0.1);
+  display: grid;
+  place-items: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f5f57;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.photo-editor-preview img { width: 100%; height: 100%; object-fit: cover; }
+.photo-editor-actions { display: flex; flex-direction: column; gap: 6px; flex: 1 1 240px; }
+.photo-editor-actions .button { align-self: flex-start; cursor: pointer; }
+/* ছবি লোড না হলে টিকিটে অক্ষর দেখানো হয় (ভাঙা ছবির বদলে) */
+.receipt-holder.photo-broken::before {
+  content: attr(data-initial);
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f5f57;
+  font-size: 2rem;
+  font-weight: 800;
 }

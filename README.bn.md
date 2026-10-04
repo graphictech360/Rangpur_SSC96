@@ -1,26 +1,57 @@
 # Rangpur SSC 96 Festival
 
-**প্রকল্পের অবস্থা:** কার্যকর local demo + Supabase-ready source code। ব্যবহারকারীর দেওয়া Supabase প্রকল্পে কোনো migration এখনো চালানো হয়নি; publishable/anon key দেওয়া হয়নি। এটি production-এ চালু করা হয়েছে—এমন দাবি নয়।
+**প্রকল্পের অবস্থা:** কার্যকর local demo + Supabase-ready source code। ব্যবহারকারীর দেওয়া Supabase প্রকল্পে কোনো migration এখনো চালানো হয়নি; publishable/anon key দেওয়া হয়নি। এটি production-এ চালু করা হয়েছে—এমন দাবি নয়।
 
-## যা তৈরি হয়েছে
+## সব কিছু নিজে সাজাও: ফর্ম, হেডার ও মেনু
 
-- একটি লিংকে responsive Bengali festival web app; ফোনে PWA হিসেবে হোম স্ক্রিনে যোগ করা যাবে। আলাদা Android/iOS native অ্যাপ নয়।
-- হালকা cream background, green/coral/yellow palette, বড় creative heading, image parallax/float, text reveal, moving festival ribbon। Reduced-motion preference সম্মান করা হয়।
-- দেওয়া logo ও Friends Forever ছবির local, optimized WebP assets; Bangla/English fonts local। কোনো CDN stylesheet বা image নির্ভরতা নেই।
-- বাংলা সময়সূচির ১৪টি আয়োজন; সকাল ৯টার নিবন্ধন/পিঠা উৎসব ও দুপুর ১২টায় কাউন্টার বন্ধের নোট।
-- তিন ধাপের form: পরিচয়, পরিবার, পেমেন্ট। এসএসসি রোল প্রয়োজনীয়; SSC registration ঐচ্ছিক।
+অ্যাডমিন প্যানেলের দুটি নতুন অংশ দিয়ে পুরো নিবন্ধন-পেজ নিজের মতো বানানো যায়।
+
+### ১. নিবন্ধন ফর্ম (ট্যাব: **নিবন্ধন ফর্ম**)
+- ফর্মের **প্রতিটি ঘর** এখন এখানে কার্ড আকারে — ছবি, নাম, স্কুল, এসএসসি
+  রোল, রেজিস্ট্রেশন, মোবাইল, অবস্থান, “কারা আসছো একসাথে?” ও **টি-শার্টের
+  সাইজ**।
+- প্রতিটি কার্ডে **সম্পাদনা**, **লুকাও / আবার দেখাও** ও **ধাপ বদল** আছে।
+  কিছু আয়োজনে টি-শার্ট লাগে না? কার্ডে “লুকাও” চাপলেই ফর্ম থেকে চলে যায়।
+- **টেনে (drag) সাজানো**: কার্ড ধরে উপরে-নিচে টেনে ছেড়ে দিলেই ক্রম বদলায়;
+  ফোনে/ডেস্কটপে সেই ক্রমেই দেখা যাবে।
+- নাম ও মোবাইল **সুরক্ষিত** — লুকানো বা মুছে ফেলা যায় না (নিবন্ধন অসম্পূর্ণ
+  হয়ে যেত), লেবেল বদলানো যায়।
+- কার্ডের নিচে **“ফর্মের লেখা”** অংশে কার্ডের শিরোনাম (YOUR SEAT IS
+  WAITING), ধাপের নাম, ফি-লেবেল, প্রেরকের নম্বর ও ট্রানজেকশন আইডি ঘরের নাম, সম্মতির বাক্য — সব বদলানো যায়।
+- “নতুন ঘর যোগ করুন” দিয়ে নিজের ঘর (রক্তের গ্রুপ, জার্সির নাম…) যোগ করা যায়,
+  কোন ধাপে দেখাবে সেটিও বেছে নেওয়া যায়।
+
+### ২. হেডার ও মেনু (ট্যাব: **হেডার ও মেনু**)
+- **লোগো**: “নতুন লোগো আপলোড করুন” চেপে ছবি দিলে ব্রাউজারে ছোট হয়ে
+  Supabase Storage-এ ওঠে ও সাথেই হেডারে বসে যায়; চাইলে লিংকও বসানো যায়।
+- **হেডারের নাম ও ছোট লেখা** সরাসরি এডিট হয় (টিকিটেও দেখা যায়)।
+- **মেনুর প্রতিটি লিংক**: ধাপে ধাপে যাওয়া লিংক (আমাদের গল্প, আয়োজন…),
+  “আমার টিকিট” বোতাম (নাম বদলানো/লুকানো যায়), বা বাইরের লিংক (ফেসবুক গ্রুপ)।
+  টেনে ক্রম বদল, চোখের বোতামে লুকানো, ডাস্টবিনে মোছা।
+
+> দুটোই সেভ করার সঙ্গে সঙ্গে পাবলিক পেজে দেখা যায় — আলাদা করে কিছু ছাপতে
+> বা সার্ভার চালু করতে হয় না।
+
+## যা তৈরি হয়েছে
+
+- একটি লিংকে responsive Bengali festival web app; ফোনে PWA হিসেবে হোম স্ক্রিনে যোগ করা যাবে। আলাদা Android/iOS native অ্যাপ নয়।
+- হালকা cream background, green/coral/yellow palette, বড় creative heading, image parallax/float, text reveal, moving festival ribbon। Reduced-motion preference সম্মান করা হয়।
+- দেওয়া logo ও Friends Forever ছবির local, optimized WebP assets; Bangla/English fonts local। কোনো CDN stylesheet বা image নির্ভরতা নেই।
+- বাংলা সময়সূচির ১৪টি আয়োজন; সকাল ৯টার নিবন্ধন/পিঠা উৎসব ও দুপুর ১২টায় কাউন্টার বন্ধের নোট।
+- তিন ধাপের form: পরিচয়, পরিবার, পেমেন্ট। এসএসসি রোল প্রয়োজনীয়; SSC registration ঐচ্ছিক।
+- **ছবি আপলোড (নতুন):** পরিচয় ধাপে নিজের ছবি দেওয়া যায় — যেকোনো সাইজের ছবি (ফোনের ছবি) দিলেও অ্যাপ নিজেই ঠিক **৫১২×৫১২ স্কয়ার JPEG (~৪০–৯০ KB)** বানায়, তাই জায়গা কম লাগে ও টিকিটে পরিষ্কার দেখা যায়। ছবি রাখা হয় **Supabase Storage → photos** bucket-এ (Vercel-এ ফাইল স্থায়ীভাবে রাখা যায় না — serverless ডিস্ক প্রতি অনুরোধে মুছে যায়, তাই Storage-ই আসল স্থায়ী জায়গা)। ডিফল্টে ছবি ছাড়া জমা দেওয়া যায় না; চাইলে সেটিং `app.photo_required` থেকে ঐচ্ছিক করা যায়।
 - ফি: বন্ধু ৳১,৪৯৯ + জীবনসঙ্গী ৳৫০০ (০/১ জন) + প্রতি শিশু ৳২০০। Server-side calculation এবং registration-time fee snapshots।
 - বিকাশ/নগদের ব্যক্তিগত Send Money নম্বর: Tomal, Mahatab, Shohag, Arif। Provider/collector selection, copy-number, sender mobile, transaction ID।
-- ম্যানুয়াল payment review: pending → approved/rejected। Status অংশগ্রহণকারী নিজে বদলাতে পারেন না। একই provider+TrxID পুনর্ব্যবহার আটকানো হয়েছে।
-- অনুমোদনের পর random-token QR ticket, unique `R96-xxxxx` number, digital receipt, PNG download ও Print/PDF।
-- **কোনো SMS/email প্রয়োজন নেই।** Receipt/status-এর গোপন লিংক registration-এর পর দেওয়া হয়; একই ব্রাউজারে “আমার টিকিট”-এও পাওয়া যায়। খোলা status page প্রতি ১৫ সেকেন্ডে আপডেট হয়।
-- Staff-only camera QR scan, QR image upload ও ticket-number fallback। Staff login + admin-approved browser session ছাড়া check-in নয়; এক টিকিটে একবার entry।
+- ম্যানুয়াল payment review: pending → approved/rejected। Status অংশগ্রহণকারী নিজে বদলাতে পারেন না। একই provider+TrxID পুনর্ব্যবহার আটকানো হয়েছে।
+- অনুমোদনের পর random-token QR ticket, unique `R96-xxxxx` number, digital receipt, PNG download ও Print/PDF — **রিসিটে অংশগ্রহণকারীর ছবি + সব তথ্য** (নাম, স্কুল, এসএসসি রোল/রেজিস্ট্রেশন, মোবাইল, অবস্থান, টি-শার্ট, খাবার, পরিবার, পেমেন্ট)।
+- **কোনো SMS/email প্রয়োজন নেই।** Receipt/status-এর গোপন লিংক registration-এর পর দেওয়া হয়; একই ব্রাউজারে “আমার টিকিট”-এও পাওয়া যায়। খোলা status page প্রতি ১৫ সেকেন্ডে আপডেট হয়।
+- Staff-only camera QR scan, QR image upload ও ticket-number fallback। Staff login + admin-approved browser session ছাড়া check-in নয়; এক টিকিটে একবার entry - চেক-ইনের ফলাফলে অংশগ্রহণকারীর **ছবি** আসে, গেটে চিনতে সুবিধা।
 - Admin: overview, participant add/edit/soft-remove, individual payment review/correction, CSV export, event/fee/content/schedule/payment-number editing, browser-device approval/revocation, action log, lost-link recovery।
-- একজন বন্ধু ও তার নিবন্ধিত পরিবার **একটি QR দিয়ে একসঙ্গে** check-in করবেন। আলাদা সময়ে/আলাদা শিশুতে partial check-in এই সংস্করণে নেই।
+- একজন বন্ধু ও তার নিবন্ধিত পরিবার **একটি QR দিয়ে একসঙ্গে** check-in করবেন। আলাদা সময়ে/আলাদা শিশুতে partial check-in এই সংস্করণে নেই।
 
 ## দ্রুত ডেমো চালানো
 
-Node.js 20+ প্রয়োজন।
+Node.js 20+ প্রয়োজন।
 
 ```bash
 npm ci
@@ -33,28 +64,28 @@ npm run dev
 | --------------------------- | ---------------------------- |
 | মূল festival ও registration | `/`                          |
 | গোপন status/receipt link    | `/#ticket=YOUR_RECOVERY_KEY` |
-| আয়োজক প্যানেল               | `/admin`                     |
+| আয়োজক প্যানেল               | `/admin`                     |
 | গেট চেক-ইন                  | `/check-in`                  |
 
-ডেমো login পেজে এক-ক্লিক অ্যাকাউন্ট রয়েছে:
+ডেমো login পেজে এক-ক্লিক অ্যাকাউন্ট রয়েছে:
 
 - Admin: `admin@ssc96.demo` / `Festival96!`
 - Gate staff: `staff@ssc96.demo` / `Checkin96!`
 
-**এই অ্যাকাউন্টগুলো কেবল `DATA_MODE=demo`-তে কাজ করে। ডেমোতে বাস্তব টাকা পাঠাবেন না বা প্রকৃত ব্যক্তিগত তথ্য দেবেন না।** নম্বরগুলো ব্যবহারকারীর দেওয়া, কিন্তু ডেমো পেমেন্ট কোনো বাস্তব টাকা সংগ্রহ করে না।
+**এই অ্যাকাউন্টগুলো কেবল `DATA_MODE=demo`-তে কাজ করে। ডেমোতে বাস্তব টাকা পাঠাবেন না বা প্রকৃত ব্যক্তিগত তথ্য দেবেন না।** নম্বরগুলো ব্যবহারকারীর দেওয়া, কিন্তু ডেমো পেমেন্ট কোনো বাস্তব টাকা সংগ্রহ করে না।
 
-ডেমোর কাল্পনিক তথ্য `data/demo-store.json`-এ থাকে। Server বন্ধ করে এই ফাইল মুছলে পরবর্তী startup-এ ডেমো reset হয়। এই ফাইল source ZIP-এ রাখা হয়নি।
+ডেমোর কাল্পনিক তথ্য `data/demo-store.json`-এ থাকে। Server বন্ধ করে এই ফাইল মুছলে পরবর্তী startup-এ ডেমো reset হয়। এই ফাইল source ZIP-এ রাখা হয়নি।
 
-## সার্ভার ছাড়া অফলাইন প্রিভিউ (সহজে দেখানোর জন্য)
+## সার্ভার ছাড়া অফলাইন প্রিভিউ (সহজে দেখানোর জন্য)
 
-কোনো ইনস্টলেশন, সার্ভার বা ইন্টারনেট ছাড়াই একটি ফাইলেই পুরো অ্যাপ দেখা যায়:
+কোনো ইনস্টলেশন, সার্ভার বা ইন্টারনেট ছাড়াই একটি ফাইলেই পুরো অ্যাপ দেখা যায়:
 
 ```bash
 npm run preview:build   # তৈরি করে: Rangpur-SSC96-Preview.html (প্রজেক্টের বাইরে /home/user-এ)
 npm run preview:test    # হেডলেস ব্রাউজারে ফর্ম → pending → অনুমোদন → QR যাচাই করে
 ```
 
-`Rangpur-SSC96-Preview.html`-এ CSS, JS, বাংলা ফন্ট ও ছবি সব ভেতরে বসানো থাকে, তাই WhatsApp/ইমেইলে পাঠিয়ে ফোনের ব্রাউজারে খোলা যায়। এতে চলে ডেমো স্টোরের হুবহু একই কোড (`server/demo-store.mjs`), শুধু ডেটা ব্রাউজারের ভেতরে (localStorage) থাকে — কিন্তু কোনো অনলাইন কাজ হয় না। এই প্রিভিউর কোড `preview/` ফোল্ডারে; প্রকৃত সার্ভার/অ্যাপের কোনো অংশ বদলায় না। ভেতরে `process.env`-এর `SUPABASE_*` মান কখনো বসানো হয় না, তাই ডেমো মোডই চলে।
+`Rangpur-SSC96-Preview.html`-এ CSS, JS, বাংলা ফন্ট ও ছবি সব ভেতরে বসানো থাকে, তাই WhatsApp/ইমেইলে পাঠিয়ে ফোনের ব্রাউজারে খোলা যায়। এতে চলে ডেমো স্টোরের হুবহু একই কোড (`server/demo-store.mjs`), শুধু ডেটা ব্রাউজারের ভেতরে (localStorage) থাকে — কিন্তু কোনো অনলাইন কাজ হয় না। এই প্রিভিউর কোড `preview/` ফোল্ডারে; প্রকৃত সার্ভার/অ্যাপের কোনো অংশ বদলায় না। ভেতরে `process.env`-এর `SUPABASE_*` মান কখনো বসানো হয় না, তাই ডেমো মোডই চলে।
 
 ## 🌐 লাইভ অ্যাড্রেস (Vercel)
 
@@ -65,23 +96,56 @@ npm run preview:test    # হেডলেস ব্রাউজারে ফর�
 - সেশন এখন **সই-করা কুকিতে** (serverless-এর একাধিক ইনস্ট্যান্সেও টেকে), অ্যাডমিন সেশন ৮ ঘণ্টা
 - পাসওয়ার্ড রিসেট: `/admin/reset` · Supabase `site_url` = `https://rangpur-ssc96.vercel.app`
 
+## নিবন্ধন ফর্ম নিজেই সাজাও (অ্যাডমিন প্যানেল → “ফর্মের ঘর”)
+
+ফর্মে কী কী ঘর থাকবে তা এখন **আপনি নিজেই ঠিক করবেন** — কোড ছুঁতে হবে না।
+প্যানেলে ঢুকে **“ফর্মের ঘর”** ট্যাবে গিয়ে:
+
+- **ঘর যোগ করুন** — নাম (বাংলা), কী (ইংরেজি), ধরন (এক লাইন / বড় লেখা / তালিকা / সংখ্যা / মোবাইল / তারিখ / হ্যাঁ-না)
+- **বাধ্যতামূলক** কি না — টিক দিলে উত্তর না দিয়ে কেউ জমা দিতে পারবে না
+- **উপর/নিচ তির** — ক্রম বদলানো
+- **লুকাও / আবার দেখাও** — মুছে না ফেলেই ফর্ম থেকে লুকানো (পুরোনো উত্তর রেকর্ডে থাকে)
+- **সম্পাদনা / মুছে ফেলা**
+
+যোগ করা ঘর **সঙ্গে সঙ্গে** পাবলিক ফর্মে (পরিবার ধাপে) দেখা যায়; উত্তরগুলো
+`registrations.custom_answers`-এ JSON আকারে জমা হয়, রিপোর্ট পেজে “কে কী উত্তর দিয়েছে”
+আর CSV এক্সপোর্টেও ওঠে।
+
+**মূল ঘরগুলো সবসময় থাকে:** ছবি, নাম, স্কুল, এসএসসি রোল, এসএসসি রেজিস্ট্রেশন,
+মোবাইল, বর্তমান অবস্থান, টি-শার্ট সাইজ, পরিবারের সদস্য, পেমেন্ট তথ্য।
+**সরানো হয়েছে (আয়োজকের নির্দেশে):** খাবারের পছন্দ ও বিশেষ অনুরোধ।
+
+**সব সেকশন মোবাইল-খাপ:** নিবন্ধন ফর্মে কোনো ঘর পাশাপাশি নয় — মোবাইল, ট্যাবলেট,
+ডেস্কটপ সবখানে এক কলামে উপর-নিচে। প্রতিটি সেকশন (হিরো, গল্প, আয়োজন, সময়সূচি,
+FAQ, টিকিট, প্যানেল) ছোট স্ক্রিনে নিজে থেকেই সাজিয়ে নেয়; কিছুই ডানে-বাঁয়ে
+বাইরে বেরোয় না।
+
+## নতুন নিবন্ধনের খবর আপনার ইমেইলে (এক ক্লিকে প্যানেল)
+
+কেউ নিবন্ধন করলেই **সাথে সাথে ইমেইল** যায় — নাম, স্কুল, মোবাইল, টাকা, TrxID, টিকিট নম্বর সহ।
+মেইলের **“এক ক্লিকে প্যানেলে যাই”** বোতামে চাপ দিলেই অ্যাডমিন প্যানেল খোলে (৬০ মিনিটের সই-করা লিংক)।
+চালু করতে শুধু একটি চাবি (Resend API key) বসাতে হয় — পুরো গাইড: **`docs/NOTIFICATION.bn.md`**।
+সেটআপ ছাড়াও সব কাজ করে; শুধু মেইলটা যায় না (প্যানেলের হেডারে “ইমেইল খবর বন্ধ/চালু” দেখে বুঝবেন)।
+
 ## Supabase Table Editor-এ টেবিল কোথায়?
 
-Table Editor খুললে schema dropdown-এ `public` লেখা থাকে — তাই খালি দেখায়। **সেকশনের নাম বাছুন**, তারপর যেকোনো টেবিলে ক্লিক করলেই শুধু সেই টেবিলের ডেটা দেখাবে:
+Table Editor খুললেই (schema = **`public`**) বাঁয়ের তালিকায় **সব টেবিল একসাথে** দেখা যায় — কোনো dropdown বদলাতে হয় না।
+নামের শুরু দেখেই সেকশন চেনা যায়:
 
-| schema | সেকশন | টেবিল |
-|---|---|---|
-| `admin` | অ্যাডমিন | admins · login_events · password_resets · email_outbox · devices · audit_logs |
-| `payment` | পেমেন্ট | accounts · payments · refunds |
-| `registration` | বন্ধু ও নিবন্ধন | participants · registrations · links |
-| `gate` | গেট | tickets · checkins |
-| `content` | পেজের লেখা | sections · schedule |
-| `event` | অনুষ্ঠান | events · fees · contacts |
-| `report` | রিপোর্ট | ৮টি হিসাব-ভিউ |
-| `guide` | গঠন-বর্ণনা | tables · flows |
-| `database` | ডেটাবেস | schemas · settings · migrations |
+| নামের শুরু | সেকশন | টেবিল |
+| ---------- | ------ | ----- |
+| **`user`** | **বন্ধু ও নিবন্ধন** (এক ক্লিকে সবার সব তথ্য) | `user` · `participants` · `registrations` · `user_links` |
+| `admin_` | অ্যাডমিন | `admin_users` · `admin_login_events` · `admin_password_resets` · `admin_email_outbox` · `admin_devices` · `admin_audit_logs` |
+| `payments` · `payment_` · `refunds` | পেমেন্ট | `payments` · `payment_accounts` · `refunds` |
+| `gate_` | গেট | `gate_tickets` · `gate_checkins` |
+| `content_` | পেজের লেখা | `content_sections` · `content_schedule` |
+| `event_` | অনুষ্ঠান | `event_events` · `event_fees` · `event_contacts` |
+| `report_` | রিপোর্ট (ভিউ) | ৮টি হিসাব-ভিউ |
+| `guide_` | গঠন-বর্ণনা | `guide_tables` · `guide_flows` + ৪টি ভিউ |
+| `database_` | ডেটাবেস | `database_schemas` · `database_settings` · `database_migrations` · `database_health` |
 
-মোট **৯ স্কিমা · ২৪ টেবিল · ৩৬ সম্পর্ক · ৮ রিপোর্ট ভিউ**। বিস্তারিত: `docs/DATABASE.bn.md`
+**Database → Schema Visualizer**-এ টেবিলগুলো ও সংযোগের তীর একসাথে দেখা যায়।
+মোট ২৪টি টেবিল + ১৪টি ভিউ, সব এক স্কিমায়। বিস্তারিত: `docs/DATABASE.bn.md`।
 
 ## অ্যাডমিন অ্যাকাউন্ট ও রিপোর্ট
 
@@ -151,25 +215,25 @@ node scripts/bump-text.mjs   # আবার সব সাধারণ টেক�
 
 1. Registration → “ডেমো তথ্য” → পরিবার বাছাই → “কাল্পনিক পেমেন্ট তথ্য বসাও” → consent → submit।
 2. গোপন ticket link কপি করুন। QR তখনো থাকবে না।
-3. `/admin` → demo admin → payment review → নিজের record মিলিয়েছি checkbox → approve।
+3. `/admin` → demo admin → payment review → নিজের record মিলিয়েছি checkbox → approve।
 4. Ticket link খুলুন/refresh করুন; QR ও receipt দেখা যাবে।
 5. `/check-in` → staff login → device approval request।
 6. Admin-এর “স্টাফ ডিভাইস” থেকে approve → staff screen-এ permission refresh।
-7. QR scan/image upload বা ticket number দিয়ে check-in। দ্বিতীয়বার duplicate message আসবে।
+7. QR scan/image upload বা ticket number দিয়ে check-in। দ্বিতীয়বার duplicate message আসবে।
 
-ডেমো admin credentials সবার জানা বলেই এটি বাস্তব registration-এর জন্য নয়। Live mode-এ নিজের Supabase Auth accounts ও roles ব্যবহার করতে হবে।
+ডেমো admin credentials সবার জানা বলেই এটি বাস্তব registration-এর জন্য নয়। Live mode-এ নিজের Supabase Auth accounts ও roles ব্যবহার করতে হবে।
 
 ## Supabase সংযোগ: Rangpur_SSC96
 
 Project URL: `https://mbuzwqsrnmergrtetwqq.supabase.co`
 
-URL একা দিয়ে database পরিবর্তন করা যায় না। আপনার Supabase dashboard-এ নিজে নিচের কাজগুলো করুন:
+URL একা দিয়ে database পরিবর্তন করা যায় না। আপনার Supabase dashboard-এ নিজে নিচের কাজগুলো করুন:
 
-1. বিদ্যমান database থাকলে backup নিন। `01_schema.sql` একটি fresh `ssc96` schema-এর জন্য একবার চালানোর migration। কোনো table DROP করা হয় না।
+1. বিদ্যমান database থাকলে backup নিন। `01_schema.sql` একটি fresh `ssc96` schema-এর জন্য একবার চালানোর migration। কোনো table DROP করা হয় না।
 2. **SQL Editor**-এ `supabase/01_schema.sql` পুরোটা চালান।
-3. তারপর `supabase/02_seed.sql` চালান। এতে event, ৩টি fee, ১৩টি content row (branding, মূল সেকশন, ribbon ও FAQ), ১৪টি schedule row ও ৮টি payment account যোগ হবে। **কোনো কাল্পনিক participant/payment live database-এ যোগ হয় না।** Seed আবার চালালে admin-edited rows overwrite হয় না।
+3. তারপর `supabase/02_seed.sql` চালান। এতে event, ৩টি fee, ১৩টি content row (branding, মূল সেকশন, ribbon ও FAQ), ১৪টি schedule row ও ৮টি payment account যোগ হবে। **কোনো কাল্পনিক participant/payment live database-এ যোগ হয় না।** Seed আবার চালালে admin-edited rows overwrite হয় না।
 4. **Authentication → Users** থেকে admin এবং প্রত্যেক gate staff-এর জন্য পৃথক account তৈরি করুন, confirmed email ও শক্তিশালী password দিন। Public signup বন্ধ রাখুন।
-5. `supabase/03_staff_setup.sql`-এর placeholder email/name বদলে চালান। শেষে SELECT-এ roles তৈরি হয়েছে কিনা দেখুন।
+5. `supabase/03_staff_setup.sql`-এর placeholder email/name বদলে চালান। শেষে SELECT-এ roles তৈরি হয়েছে কিনা দেখুন।
 6. Supabase-এর project API Keys থেকে **publishable key** (`sb_publishable_...`) অথবা legacy **anon key** নিন। **Service-role/secret key ব্যবহার করবেন না।**
 7. `.env.example` কপি করে `.env` বানান:
 
@@ -181,13 +245,13 @@ SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
 
 8. Server restart করুন। Credentials বা keys source control/public chat-এ দেবেন না।
 
-**Table Editor-এ schema `ssc96` বাছুন।** ওই schema-কে Supabase-এর exposed Data API schemas-এ যোগ করবেন না। সব access controlled public RPC-এর মাধ্যমে হয়; participant/payment tables-এ direct grants নেই এবং RLS default-deny।
+**Table Editor-এ schema `ssc96` বাছুন।** ওই schema-কে Supabase-এর exposed Data API schemas-এ যোগ করবেন না। সব access controlled public RPC-এর মাধ্যমে হয়; participant/payment tables-এ direct grants নেই এবং RLS default-deny।
 
-Supabase API key security bypass নয়: administrative RPC-তে Auth JWT এবং database staff-role check লাগবেই। Publishable/anon key দিয়ে নিজেকে approve বা check-in করা যাবে না।
+Supabase API key security bypass নয়: administrative RPC-তে Auth JWT এবং database staff-role check লাগবেই। Publishable/anon key দিয়ে নিজেকে approve বা check-in করা যাবে না।
 
 ## Production deployment
 
-Static-only hosting যথেষ্ট নয়: Express API server প্রয়োজন। একটি Node container/server-এ deploy করুন (যেমন উপযুক্ত Node hosting), একই origin-এ browser ও API থাকবে।
+Static-only hosting যথেষ্ট নয়: Express API server প্রয়োজন। একটি Node container/server-এ deploy করুন (যেমন উপযুক্ত Node hosting), একই origin-এ browser ও API থাকবে।
 
 ```bash
 npm ci
@@ -207,14 +271,14 @@ APP_ORIGIN=https://YOUR_REAL_DOMAIN
 TRUST_PROXY=1
 ```
 
-- নিজের domain ও HTTPS configure করুন; camera permission-এর জন্য HTTPS প্রয়োজন।
+- নিজের domain ও HTTPS configure করুন; camera permission-এর জন্য HTTPS প্রয়োজন।
 - `SESSION_SECRET` তৈরির উদাহরণ: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`। Secret privately store করুন।
-- `TRUST_PROXY` আপনার hosting-এর actual proxy chain অনুযায়ী ঠিক করুন।
-- Server sessions বর্তমানে memory-তে, সর্বোচ্চ ৮ ঘণ্টা; restart হলে staff-কে আবার login করতে হয়। **একটি Node instance** দিয়ে শুরু করুন। Multi-instance deployment-এর আগে shared session store/sticky-session ব্যবস্থা যোগ করুন। Device authorization Supabase-এ থাকে।
-- Real device (Android/iPhone) camera permission, Safari/Chrome login cookie আচরণ, ticket download/printing ও gate network পরীক্ষা করুন। Desktop/image QR tests hardware camera test-এর বিকল্প নয়।
-- Public form-এর জন্য প্রয়োজনে CAPTCHA ও additional abuse controls যোগ করুন; API key গোপন থাকা কোনো security assumption নয়।
-- Database backup, data retention ও deletion policy ঠিক করুন। Personal number-এ fee সংগ্রহের আগে bKash/Nagad-এর প্রযোজ্য নিয়ম/limits যাচাই করুন।
-- এই সংস্করণ payment gateway নয়; ব্যক্তিগত account-এ transfer app স্বয়ংক্রিয়ভাবে যাচাই করে না। Payment approval organizer-এর দায়িত্ব। PIN/OTP চাইবেন না।
+- `TRUST_PROXY` আপনার hosting-এর actual proxy chain অনুযায়ী ঠিক করুন।
+- Server sessions বর্তমানে memory-তে, সর্বোচ্চ ৮ ঘণ্টা; restart হলে staff-কে আবার login করতে হয়। **একটি Node instance** দিয়ে শুরু করুন। Multi-instance deployment-এর আগে shared session store/sticky-session ব্যবস্থা যোগ করুন। Device authorization Supabase-এ থাকে।
+- Real device (Android/iPhone) camera permission, Safari/Chrome login cookie আচরণ, ticket download/printing ও gate network পরীক্ষা করুন। Desktop/image QR tests hardware camera test-এর বিকল্প নয়।
+- Public form-এর জন্য প্রয়োজনে CAPTCHA ও additional abuse controls যোগ করুন; API key গোপন থাকা কোনো security assumption নয়।
+- Database backup, data retention ও deletion policy ঠিক করুন। Personal number-এ fee সংগ্রহের আগে bKash/Nagad-এর প্রযোজ্য নিয়ম/limits যাচাই করুন।
+- এই সংস্করণ payment gateway নয়; ব্যক্তিগত account-এ transfer app স্বয়ংক্রিয়ভাবে যাচাই করে না। Payment approval organizer-এর দায়িত্ব। PIN/OTP চাইবেন না।
 
 ## Database সাজানো
 
@@ -242,16 +306,16 @@ npx playwright install --with-deps chromium
 node tests/browser.mjs   # Running DEMO server required; synthetic data only
 ```
 
-SQL tests local PostgreSQL-compatible engine-এ migration, isolated table permissions, server-side totals, duplicate payments, approval-before-QR, staff/device restrictions, forged QR rejection, duplicate check-in, content editing, link rotation ও soft-removal যাচাই করে। **এগুলো আপনার remote Supabase project-এ migration চালানোর প্রমাণ নয়।**
+SQL tests local PostgreSQL-compatible engine-এ migration, isolated table permissions, server-side totals, duplicate payments, approval-before-QR, staff/device restrictions, forged QR rejection, duplicate check-in, content editing, link rotation ও soft-removal যাচাই করে। **এগুলো আপনার remote Supabase project-এ migration চালানোর প্রমাণ নয়।**
 
 ## পরের পরিবর্তন সহজ করতে
 
-- তারিখ/ভেন্যু/ফি: Admin → অনুষ্ঠান ও ফি। Year জানা না থাকায় countdown রাখা হয়নি; ৩১ ডিসেম্বর ডেমো label।
+- তারিখ/ভেন্যু/ফি: Admin → অনুষ্ঠান ও ফি। Year জানা না থাকায় countdown রাখা হয়নি; ৩১ ডিসেম্বর ডেমো label।
 - banner text/image, header branding, ribbon, fee heading ও FAQ: Admin → পেজের লেখা ও ছবি। `/assets/...` অথবা HTTPS image URL দিন; নিজের image server/storage-এর CORS export-এর জন্য ঠিক রাখতে হবে। এই সংস্করণে direct image-file upload নেই।
-- schedule: Admin → সময়সূচি → edit/add/remove।
+- schedule: Admin → সময়সূচি → edit/add/remove।
 - payment numbers: Admin → পেমেন্ট নম্বর। Old receipts collector-name/number snapshots রাখে।
-- participant: edit করা যায়। Approved fee/family count পরিবর্তন সরাসরি করা যায় না; verified financial records সুরক্ষিত রাখা হয়েছে। Pending family count বদলালে নতুন total ও actual claimed payment আবার মিলিয়ে নিতে হবে।
-- remove: soft-remove/cancel; QR invalid, list থেকে বাদ, কিন্তু payment/check-in/audit record থাকে। এটি refund নয়।
-- forgotten receipt link: admin পরিচয় নিশ্চিত করে নতুন recovery link তৈরি করতে পারবেন। পুরোনো link বাতিল হবে; বিদ্যমান QR অপরিবর্তিত থাকে। QR চুরি/compromise হলে ticket বাতিল করুন।
+- participant: edit করা যায়। Approved fee/family count পরিবর্তন সরাসরি করা যায় না; verified financial records সুরক্ষিত রাখা হয়েছে। Pending family count বদলালে নতুন total ও actual claimed payment আবার মিলিয়ে নিতে হবে।
+- remove: soft-remove/cancel; QR invalid, list থেকে বাদ, কিন্তু payment/check-in/audit record থাকে। এটি refund নয়।
+- forgotten receipt link: admin পরিচয় নিশ্চিত করে নতুন recovery link তৈরি করতে পারবেন। পুরোনো link বাতিল হবে; বিদ্যমান QR অপরিবর্তিত থাকে। QR চুরি/compromise হলে ticket বাতিল করুন।
 
-Content keys: `branding` = header logo/name; `marquee` body-এর শব্দগুলো `|` দিয়ে আলাদা; `festival` = fee-section heading; `faq` = FAQ intro; `faq_01`, `faq_02` ইত্যাদি = আলাদা প্রশ্ন/উত্তর। মূল template sections-এর অবস্থান নির্দিষ্ট; অতিরিক্ত custom sections ও FAQ-এর মধ্যে `order` কাজ করে। `visible` দিয়ে মূল sections-ও hide করা যায়।
+Content keys: `branding` = header logo/name; `marquee` body-এর শব্দগুলো `|` দিয়ে আলাদা; `festival` = fee-section heading; `faq` = FAQ intro; `faq_01`, `faq_02` ইত্যাদি = আলাদা প্রশ্ন/উত্তর। মূল template sections-এর অবস্থান নির্দিষ্ট; অতিরিক্ত custom sections ও FAQ-এর মধ্যে `order` কাজ করে। `visible` দিয়ে মূল sections-ও hide করা যায়।

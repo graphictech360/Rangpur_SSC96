@@ -6,6 +6,7 @@ import {
   ScanLine,
   LockKeyhole,
   Loader2,
+  Mail,
 } from "lucide-react";
 import type { Site, Staff } from "../types";
 import { post } from "../lib";
@@ -21,7 +22,18 @@ export default function Login({
   onLogin: (staff: Staff) => void;
   scanner?: boolean;
 }) {
-  const [email, setEmail] = useState(""),
+  // মেইলের বোতাম থেকে এলে ইমেইল আগেই বসানো থাকে, আর কী হয়েছে তা জানানো হয়
+  const params = new URLSearchParams(location.search);
+  const [email, setEmail] = useState(params.get("email") || ""),
+    [notice, setNotice] = useState(
+      params.get("login") === "expired"
+        ? "মেইলের লিংকটির সময় শেষ (৬০ মিনিট)। ইমেইল-পাসওয়ার্ড দিয়ে লগইন করুন।"
+        : params.get("login") === "failed"
+          ? "এক ক্লিকে লগইন হলো না। ইমেইল-পাসওয়ার্ড দিয়ে চেষ্টা করুন।"
+          : params.get("welcome") === "1"
+            ? "স্বাগতম! মেইলের লিংক থেকে প্যানেল খোলা হয়েছে।"
+            : "",
+    ),
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -99,6 +111,11 @@ export default function Login({
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
+            {notice && !error && (
+              <p className="form-notice" role="status">
+                <Mail size={16} /> {notice}
+              </p>
+            )}
             {error && (
               <p className="form-error" role="alert">
                 {error}

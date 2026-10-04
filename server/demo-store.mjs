@@ -70,7 +70,7 @@ function findReg(id) {
 export const demo = {
   site: async () => ({
     mode: "demo",
-    event: state.event,
+    event: { ...state.event, photoRequired: true },
     fees: state.fees,
     sections: state.sections
       .filter((x) => x.visible)
@@ -81,6 +81,13 @@ export const demo = {
     accounts: state.accounts
       .filter((x) => x.active)
       .sort((a, b) => a.order - b.order),
+    formFields: (state.formFields || [])
+      .filter((x) => x.visible !== false)
+      .sort((a, b) => a.order - b.order),
+    nav: (state.navItems || [])
+      .filter((x) => x.visible !== false)
+      .sort((a, b) => a.order - b.order),
+    formTexts: state.formTexts || {},
     demoTicketKey: state.demoTicketKey,
   }),
   register: async (data) =>
@@ -121,15 +128,18 @@ export const demo = {
           "ফি পরিবর্তিত হয়েছে। পেজ রিফ্রেশ করে সঠিক পরিমাণ যাচাই করুন।",
           409,
         );
+      if (!String(data.participant.photoUrl || "").trim())
+        throw new AppError("নিজের একটি ছবি আপলোড করুন — ছবি ছাড়া টিকিট তৈরি হবে না।", 400);
       const trackingKey = token();
       const r = {
         id: randomUUID(),
         ticketNumber: `R96-${String(state.nextSerial++).padStart(5, "0")}`,
-        participant: data.participant,
+        participant: data.participant, // ছবি (photoUrl) এর ভিতরেই থাকে
         spouse: data.spouse,
         children: data.children,
-        food: data.food,
+        food: data.food || "",
         notes: data.notes,
+        answers: data.answers || {},
         feeSnapshot: { ...state.fees },
         total,
         status: "pending",
@@ -172,6 +182,31 @@ export const demo = {
       sections: state.sections,
       schedule: state.schedule,
       accounts: state.accounts,
+      formFields: state.formFields || [],
+      nav: state.navItems || [],
+      formTexts: state.formTexts || {},
+      formFieldStats: (state.formFields || [])
+        .filter((f) => f.visible !== false)
+        .sort((a, b) => a.order - b.order)
+        .map((f) => {
+          const values = registrations
+            .filter((r) => r.archivedAt === null)
+            .map((r) => (r.answers || {})[f.key])
+            .filter((v) => v !== undefined && v !== "");
+          const counts = {};
+          for (const v of values) counts[v] = (counts[v] || 0) + 1;
+          return {
+            key: f.key,
+            label: f.label,
+            kind: f.kind,
+            order: f.order,
+            answered: values.length,
+            top: Object.entries(counts)
+              .map(([value, count]) => ({ value, count }))
+              .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+              .slice(0, 8),
+          };
+        }),
       registrations,
       devices: state.devices.map(({ tokenHash, ...d }) => d),
       audit: state.audit.slice(0, 100),
@@ -182,6 +217,7 @@ export const demo = {
           groupSize: 1 + r.spouse + r.children,
         })),
         state.registrations.filter((r) => r.archivedAt).length,
+        state.formFields || [],
       ),
     };
   },
@@ -191,7 +227,81 @@ export const demo = {
       let result = { ok: true };
       if (action === "event.save") state.event = { ...state.event, ...payload };
       else if (action === "fees.save") state.fees = { ...payload };
-      else if (
+      else if (action === "formField.save") {
+        if (!Array.isArray(state.formFields)) state.formFields = [];
+        const existing = state.formFields.find((x) => x.id === payload.id);
+        if (existing?.isBase) {
+          // মূল ঘর: লেবেল/সাহায্য/ধাপ/ক্রম বদলানো যায়; কী/ধরন কখনো নয়
+          Object.assign(existing, {
+            label: payload.label ?? existing.label,
+            placeholder:
+              payload.placeholder === undefined
+                ? existing.placeholder
+                : payload.placeholder,
+            help: payload.help === undefined ? existing.help : payload.help,
+            step: payload.step ?? existing.step ?? 1,
+            order: payload.order ?? existing.order,
+            required: existing.isLocked
+              ? existing.required
+              : (payload.required ?? existing.required),
+            visible: existing.isLocked
+              ? existing.visible
+              : (payload.visible ?? existing.visible),
+          });
+          result = existing;
+        } else {
+          if (
+            state.formFields.some(
+              (x) => x.key === payload.key && x.id !== payload.id,
+            )
+          )
+            throw new AppError("এই কী (key) দিয়ে আরেকটি ঘর আছে।");
+          const obj = { ...payload, id: payload.id || randomUUID() };
+          const i = state.formFields.findIndex((x) => x.id === obj.id);
+          if (i >= 0) state.formFields[i] = { ...state.formFields[i], ...obj };
+          else state.formFields.push(obj);
+          result = obj;
+        }
+      } else if (action === "formField.delete") {
+        const f = (state.formFields || []).find((x) => x.id === payload.id);
+        if (f?.isBase)
+          throw new AppError(
+            "ফর্মের মূল ঘর মুছে ফেলা যায় না — চাইলে “লুকাও” দিয়ে ফর্ম থেকে সরান।",
+          );
+        state.formFields = (state.formFields || []).filter(
+          (x) => x.id !== payload.id,
+        );
+      } else if (action === "formField.move") {
+        const f = (state.formFields || []).find((x) => x.id === payload.id);
+        if (f) f.order = payload.order;
+      } else if (action === "formField.reorder") {
+        // ড্র্যাগ করে সাজানোর পর এক কলেই সব ঘরের ক্রম
+        for (const item of payload.items || []) {
+          const f = (state.formFields || []).find((x) => x.id === item.id);
+          if (f) f.order = item.order;
+        }
+      } else if (action === "navItem.save") {
+        if (!Array.isArray(state.navItems)) state.navItems = [];
+        const obj = { ...payload, id: payload.id || randomUUID() };
+        const i = state.navItems.findIndex((x) => x.id === obj.id);
+        if (i >= 0) state.navItems[i] = { ...state.navItems[i], ...obj };
+        else state.navItems.push(obj);
+        result = obj;
+      } else if (action === "navItem.delete") {
+        state.navItems = (state.navItems || []).filter(
+          (x) => x.id !== payload.id,
+        );
+      } else if (action === "navItem.reorder") {
+        for (const item of payload.items || []) {
+          const n = (state.navItems || []).find((x) => x.id === item.id);
+          if (n) n.order = item.order;
+        }
+      } else if (action === "formText.save") {
+        state.formTexts = {
+          ...(state.formTexts || {}),
+          [payload.key]: payload.value ?? "",
+        };
+      } else if (
         ["section.save", "schedule.save", "account.save"].includes(action)
       ) {
         const key = {
@@ -270,8 +380,9 @@ export const demo = {
             "অনুমোদিত টিকিটের সদস্যসংখ্যা সরাসরি বদলানো যাবে না।",
           );
         r.participant = payload.participant;
-        r.food = payload.food;
+        r.food = payload.food || "";
         r.notes = payload.notes || "";
+        if (payload.answers) r.answers = payload.answers;
         r.spouse = payload.spouse;
         r.children = payload.children;
         r.total = computeTotal(r.feeSnapshot, r.spouse, r.children);
@@ -410,6 +521,7 @@ export const demo = {
         ticketNumber: r.ticketNumber,
         name: r.participant.name,
         school: r.participant.school,
+        photoUrl: r.participant.photoUrl || "",
         people: 1 + r.spouse + r.children,
         spouse: r.spouse,
         children: r.children,

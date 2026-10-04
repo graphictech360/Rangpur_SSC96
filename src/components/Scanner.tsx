@@ -17,7 +17,7 @@ import {
 import type { IScannerControls, BrowserQRCodeReader } from "@zxing/browser";
 import type { CheckinResult, Device, Site, Staff } from "../types";
 import { api, post, bn, dateTime } from "../lib";
-import { useToast } from "./UI";
+import { Avatar, useToast } from "./UI";
 export default function Scanner({
   site,
   staff,
@@ -361,7 +361,10 @@ export default function Scanner({
                     ? "আগেই চেক-ইন হয়েছে · দ্বিতীয়বার নয়"
                     : "চেক-ইন সম্পন্ন!"}
                 </span>
-                <h2>{result.name}</h2>
+                <h2>
+                  <Avatar name={result.name} photo={result.photoUrl} className="checkin-avatar" />
+                  {result.name}
+                </h2>
                 <p>{result.school}</p>
                 <div>
                   <b>{result.ticketNumber}</b>

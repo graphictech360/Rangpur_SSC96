@@ -25,7 +25,7 @@ const group = (rows, keyOf) => {
 
 const sum = (rows, fn) => rows.reduce((total, row) => total + fn(row), 0);
 
-export function computeStats(registrations = [], archivedCount = 0) {
+export function computeStats(registrations = [], archivedCount = 0, fields = []) {
   const live = registrations.filter((r) => !r.archivedAt);
   const approvedRows = live.filter(approved);
   const verifiedRows = live.filter(paid);
@@ -78,9 +78,37 @@ export function computeStats(registrations = [], archivedCount = 0) {
     .map((t) => ({ size: t.key, count: t.count }))
     .sort((a, b) => b.count - a.count || String(a.size).localeCompare(String(b.size)));
 
-  const foods = tally(live, (r) => r.food || "—")
+  // খাবার এখন ঐচ্ছিক — যারা উত্তর দেয়নি তাদের বাদ দেওয়া হয়
+  const foods = tally(
+    live.filter((r) => (r.food || "").trim() !== ""),
+    (r) => r.food,
+  )
     .map((t) => ({ preference: t.key, count: t.count }))
     .sort((a, b) => b.count - a.count);
+
+  // অ্যাডমিন-যোগ করা ঘরে কে কী উত্তর দিয়েছে (লাইভের form_field_stats-এর সমান গঠন)
+  const formFields = (fields || [])
+    .filter((f) => f.visible !== false)
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((f) => {
+      const values = live
+        .map((r) => (r.answers || {})[f.key])
+        .filter((v) => v !== undefined && String(v).trim() !== "");
+      const counts = new Map();
+      for (const v of values) counts.set(v, (counts.get(v) || 0) + 1);
+      return {
+        key: f.key,
+        label: f.label,
+        kind: f.kind,
+        order: f.order,
+        answered: values.length,
+        top: [...counts]
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value)))
+          .slice(0, 8),
+      };
+    });
 
   const providers = [...group(live, (r) => r.payment?.provider || "—")].map(
     ([provider, rows]) => ({
@@ -129,6 +157,7 @@ export function computeStats(registrations = [], archivedCount = 0) {
     schools,
     tshirts,
     foods,
+    formFields,
     providers,
     collectors,
     daily,
