@@ -61,14 +61,46 @@ try {
     fullPage: false,
   });
 
+  // খালি অবস্থায় “আমার টিকিট”: কোথায় পাবে + গোপনীয়তার বার্তা দেখা যায় কি না
+  await page.getByRole("button", { name: /আমার টিকিট/ }).click();
+  await page.locator(".ticket-find-steps").waitFor();
+  assert.match(
+    await page.locator(".ticket-find-steps").innerText(),
+    /রিকভারি কোড/,
+    "টিকিট প্যানেলে “কোথায় পাব” ৩ ধাপ আছে",
+  );
+  assert.match(
+    await page.locator(".ticket-privacy-note").innerText(),
+    /শুধুই একজন|অন্য কারও/,
+    "গোপনীয়তার বার্তা আছে — অন্য কারও তথ্য দেখা যায় না",
+  );
+  await page
+    .locator('dialog[open] button[aria-label="বন্ধ করুন"]')
+    .first()
+    .click();
+  await page.locator("dialog[open]").waitFor({ state: "hidden" });
+
   const site = await api(() => fetch("/api/site").then((r) => r.json()));
   assert.equal(site.mode, "demo");
   assert.equal(site.sections.length, 13);
   assert.equal(site.schedule.length, 14);
 
+  // নেভ-এর “নিবন্ধন” এখন আসল লিংক — যেকোনো পরিবেশে সেকশনে নিয়ে যায়
+  const navLink = page.locator('nav.main-nav a[href="#registration"]');
+  assert.equal(await navLink.count(), 1, "নেভে নিবন্ধন লিংক আছে");
+  await navLink.click();
+  await page.waitForTimeout(900);
+  assert.ok(
+    (await page.evaluate(() => window.scrollY)) > 400,
+    "নিবন্ধন ক্লিকে পেজ নিবন্ধন সেকশনে গেল",
+  );
+  assert.equal(await page.evaluate(() => location.hash), "#registration");
+
   // ফর্ম → pending
-  await page.getByRole("button", { name: "নিবন্ধন", exact: true }).click();
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(300);
+  // ছবি দেওয়া বাধ্যতামূলক — অফলাইনেও ছবি ছোট হয় এবং ডেটাতেই থাকে
+  await page.locator('input[type="file"]').setInputFiles(new URL("fixtures/photo-800x600.png", import.meta.url).pathname);
+  await page.waitForTimeout(900);
   await page.locator("#reg-name").fill("অফলাইন প্রিভিউ বন্ধু");
   await page.locator("#reg-school").fill("রংপুর জিলা স্কুল");
   await page.locator("#reg-sscRoll").fill("961111");
@@ -92,6 +124,16 @@ try {
     .click();
   await page.getByRole("button", { name: /নিবন্ধন জমা দাও/ }).click();
   await page.locator(".success-card").waitFor();
+  // সফল পর্দায় গোপন লিংক ও রিকভারি কোড চোখে দেখা যায়
+  const linkText = await page.locator(".success-keys .key-value").first().innerText();
+  const codeText = await page.locator(".success-keys .key-value.mono").innerText();
+  assert.match(linkText, /#ticket=[a-f0-9]{64}/, "গোপন টিকিট-লিংক দেখানো হয়");
+  assert.match(codeText, /^[a-f0-9]{64}$/, "রিকভারি কোড (৬৪ অক্ষর) দেখানো হয়");
+  assert.match(
+    await page.locator(".success-keys").innerText(),
+    /স্ক্রিনশট|সংরক্ষণ|কপি/,
+    "লিংক সংরক্ষণের নির্দেশ আছে",
+  );
 
   // অনুমোদনের আগে QR নেই
   await page.getByRole("button", { name: "আমার স্ট্যাটাস ও টিকিট" }).click();

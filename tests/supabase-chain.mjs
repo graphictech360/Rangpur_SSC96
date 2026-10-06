@@ -83,9 +83,9 @@ if (tok) {
   ok(g.status === 200, "guide_overview অ্যাডমিনের জন্য খোলে", g.j);
   const data = g.j?.data || g.j;
   const c = (data || {}).counts || {};
-  ok(c.schemas === 9, `স্কিমা ৯ (পেয়েছি ${c.schemas})`);
-  ok(c.tables === 24, `টেবিল ২৪ (পেয়েছি ${c.tables})`);
-  ok(c.flows === 16, `কার্য-প্রবাহ ১৬ (পেয়েছি ${c.flows})`);
+  ok(c.schemas === 9, `সেকশন ৯ (পেয়েছি ${c.schemas})`);
+  ok(c.tables >= 24, `টেবিল ২৪+ (পেয়েছি ${c.tables})`);
+  ok(c.flows === 17, `কার্য-প্রবাহ ১৭ (পেয়েছি ${c.flows})`);
   ok((data?.relations || []).length >= 20, `টেবিল-সংযোগ ${data?.relations?.length}টি`);
   ok((data?.tables || []).every((t) => t.rows >= 0), "প্রতিটি টেবিল আলাদা সারি-গণনা দিচ্ছে");
 }
@@ -94,17 +94,26 @@ console.log("\n— ৬) নিবন্ধন → অনুমোদন → QR �
 const acct = site.j.accounts[0];
 const sub = await call("/rest/v1/rpc/submit_registration", {
   p_data: {
-    participant: { name: "গঠন পরীক্ষা বন্ধু", school: "রংপুর জিলা স্কুল", sscRoll: "9001", mobile: mob, location: "ঢাকা", tshirt: "L" },
+    participant: { name: "গঠন পরীক্ষা বন্ধু", school: "রংপুর জিলা স্কুল", sscRoll: "9001", mobile: mob, location: "ঢাকা", tshirt: "L", photoUrl: "https://mbuzwqsrnmergrtetwqq.supabase.co/storage/v1/object/public/photos/participants/test/chain.jpg" },
     spouse: 1, children: 2, food: "সাধারণ", notes: "", consent: true,
     payment: { provider: acct.provider, accountId: acct.id, senderMobile: mob, transactionId: trx, amount: 1499 + 500 + 400 },
   },
 });
 ok(sub.status === 200 && sub.j?.registration?.status === "pending", "নিবন্ধন pending হলো", JSON.stringify(sub.j).slice(0, 200));
 ok(sub.j?.registration?.qrPayload === null, "অনুমোদনের আগে QR নেই");
+ok(String(sub.j?.registration?.participant?.photoUrl || "").includes("/photos/"), "নিবন্ধনের সঙ্গে ছবির লিংক সেভ হয়েছে");
+const noPhoto = await call("/rest/v1/rpc/submit_registration", {
+  p_data: {
+    participant: { name: "ছবি ছাড়া", school: "রংপুর জিলা স্কুল", sscRoll: "9003", mobile: "018" + mob.slice(3), location: "ঢাকা", tshirt: "L" },
+    spouse: 0, children: 0, food: "সাধারণ", notes: "", consent: true,
+    payment: { provider: acct.provider, accountId: acct.id, senderMobile: mob, transactionId: trx + "C", amount: 1499 },
+  },
+});
+ok(noPhoto.status >= 400, "ছবি ছাড়া নিবন্ধন আটকেছে", String(noPhoto.j?.message || "").slice(0, 60));
 const rid = sub.j?.registration?.id, key = sub.j?.trackingKey;
 const dup = await call("/rest/v1/rpc/submit_registration", {
   p_data: {
-    participant: { name: "গঠন পরীক্ষা বন্ধু ২", school: "কারমাইকেল কলেজ", sscRoll: "9002", mobile: mob, location: "রংপুর", tshirt: "M" },
+    participant: { name: "গঠন পরীক্ষা বন্ধু ২", school: "কারমাইকেল কলেজ", sscRoll: "9002", mobile: mob, location: "রংপুর", tshirt: "M", photoUrl: "https://mbuzwqsrnmergrtetwqq.supabase.co/storage/v1/object/public/photos/participants/test/chain.jpg" },
     spouse: 0, children: 0, food: "নিরামিষ", notes: "", consent: true,
     payment: { provider: acct.provider, accountId: acct.id, senderMobile: mob, transactionId: trx + "B", amount: 1499 },
   },

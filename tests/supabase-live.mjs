@@ -122,6 +122,8 @@ const registration = {
     mobile,
     location: "ঢাকা",
     tshirt: "L",
+    photoUrl:
+      url + "/storage/v1/object/public/photos/participants/test/live-check.jpg",
   },
   spouse: 1,
   children: 2,
@@ -183,6 +185,21 @@ const wrong = await rpc("ticket_status", { p_tracking_key: "f".repeat(64) });
 check("ভুল/নকল কী প্রত্যাখ্যাত", wrong.status !== 200, "HTTP " + wrong.status);
 
 // ৭. (ঐচ্ছিক) অ্যাডমিন লগইন — শুধু ADMIN_EMAIL/ADMIN_PASSWORD দিলে চলে
+// পাবলিক সাইটে “নিবন্ধন” সেকশনটি অবশ্যই থাকতে হবে — নইলে হোমপেজে ফর্মই আসে না
+{
+  const site = await fetch(`${url}/rest/v1/rpc/public_site`, {
+    method: "POST",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: "{}",
+  }).then((r) => r.json());
+  const sections = site?.sections || [];
+  check(
+    "পাবলিক সাইটে নিবন্ধন সেকশন আছে (section_key = registration)",
+    sections.some((x) => x.key === "registration"),
+    sections.map((x) => x.key).join(","),
+  );
+}
+
 const adminEmail = process.env.SUPABASE_ADMIN_EMAIL;
 const adminPassword = process.env.SUPABASE_ADMIN_PASSWORD;
 if (adminEmail && adminPassword) {

@@ -27,7 +27,10 @@ try {
     1360,
   );
   await page.screenshot({ path: ".artifacts/desktop.png" });
-  await page.getByRole("button", { name: "নিবন্ধন", exact: true }).click();
+  const navReg = page.locator('nav.main-nav a[href="#registration"]');
+  await (await navReg.count() ? navReg.first() : page.getByRole("button", { name: "নিবন্ধন", exact: true })).click();
+  await page.waitForTimeout(900);
+  await page.locator('input[type="file"]').setInputFiles(new URL("fixtures/photo-800x600.png", import.meta.url).pathname);
   await page.waitForTimeout(900);
   await page.locator("#reg-name").fill("পরীক্ষার বন্ধু");
   await page.locator("#reg-school").fill("রংপুর জিলা স্কুল");

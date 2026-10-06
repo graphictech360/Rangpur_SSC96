@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  participantSchema,
   registrationSchema,
   computeTotal,
   normalizeMobile,
@@ -55,4 +56,21 @@ test("registration rejects negative counts and never accepts an approval status 
   assert.equal(validated.status, undefined);
   assert.throws(() => registrationSchema.parse({ ...input, children: -1 }));
   assert.throws(() => registrationSchema.parse({ ...input, spouse: 2 }));
+});
+
+test("ছবির লিংক: খালি/ঠিক https ঠিক আছে, অন্যটা বাদ", () => {
+  const base = {
+    name: "পরীক্ষা",
+    school: "রংপুর জিলা স্কুল",
+    sscRoll: "1234",
+    mobile: "01712345678",
+    location: "ঢাকা",
+    tshirt: "L",
+  };
+  assert.equal(participantSchema.parse(base).photoUrl, "");
+  assert.equal(
+    participantSchema.parse({ ...base, photoUrl: "https://x.supabase.co/storage/v1/object/public/photos/a.jpg" }).photoUrl,
+    "https://x.supabase.co/storage/v1/object/public/photos/a.jpg",
+  );
+  assert.throws(() => participantSchema.parse({ ...base, photoUrl: "javascript:alert(1)" }));
 });
