@@ -281,9 +281,11 @@ summary:focus-visible {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: #fbf6ebee;
+  /* লোগোটি স্বচ্ছ PNG — তাই হেডারের ব্যাকগ্রাউন্ড সাদা (নিচের ক্রিম পেজ থেকে আলাদা দেখায়) */
+  background: #ffffffee;
   backdrop-filter: blur(16px);
   border-bottom: 1px solid #b6bb982b;
+  box-shadow: 0 8px 24px rgba(31, 41, 26, 0.045);
 }
 .header-inner {
   display: flex;
@@ -2681,6 +2683,11 @@ summary:focus-visible {
 .login-art > img {
   width: 90px;
   margin-bottom: 35px;
+  /* স্বচ্ছ লোগোর নিচে সাদা চিপ — গাঢ় প্যানেলেও ঝকঝকে দেখায় */
+  background: #fff;
+  border-radius: 22px;
+  padding: 9px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
 }
 .login-art > span {
   font-family: "Outfit", sans-serif;
@@ -2801,6 +2808,10 @@ summary:focus-visible {
   width: 48px;
   height: 48px;
   object-fit: contain;
+  /* লোগো স্বচ্ছ — গাঢ় সাইডবারে সাদা চিপের উপরে বসে */
+  background: #fff;
+  border-radius: 14px;
+  padding: 3px;
 }
 .admin-brand > div {
   font-family: "Outfit", sans-serif;
@@ -7824,4 +7835,18 @@ table {
   color: #0f5f57;
   font-size: 2rem;
   font-weight: 800;
+}
+
+/* ── স্বচ্ছ লোগো সব জায়গায় সাদার উপরেই বসবে ──────────────────────── */
+/* কোনো গাঢ়/রঙিন ব্যাকগ্রাউন্ডে লোগো থাকলে সেখানে সাদা চিপ */
+.scanner-header .brand img,
+.scanner-header > .brand img {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2px;
+}
+@media (max-width: 640px) {
+  /* মোবাইলে হেডার সাদাই থাকে — লোগো আরও স্পষ্ট */
+  .site-header { background: #fffffff7; }
+  .brand img { border-radius: 12px; }
 }
