@@ -69,6 +69,27 @@ import {
 } from "./Editors";
 import RegistrationForm from "./RegistrationForm";
 import Reports from "./Reports";
+// নিরাপত্তা-হিসাবের ধরন (সার্ভারের /api/admin/security উত্তর)
+interface SecurityInfo {
+  counters: {
+    blockedOrigin: number;
+    blockedBot: number;
+    loginFailure: number;
+    lockout: number;
+    rateLimited: number;
+    startedAt: number;
+  };
+  recent: { kind: string; detail: string; ip: string; at: number }[];
+  human: Record<string, string>;
+}
+const SECURITY_KIND_BN: Record<string, string> = {
+  blockedOrigin: "বাইরের উৎস থেকে অনুরোধ আটকানো",
+  blockedBot: "রোবট/সন্দেহজনক জমা আটকানো",
+  loginFailure: "ভুল লগইনের চেষ্টা",
+  lockout: "অস্থায়ী লগইন লক",
+  rateLimited: "অতিরিক্ত অনুরোধ থামানো",
+};
+
 const FIELD_KIND_BN: Record<string, string> = {
   text: "এক লাইনের লেখা",
   textarea: "বড় লেখা",
@@ -171,7 +192,12 @@ export default function Admin({
     )
       .then(setNotify)
       .catch(() => setNotify(null));
+    // নিরাপত্তার হিসাব (ব্লক করা অনুরোধ, ভুল লগইন, সন্দেহজনক জমা)
+    api<SecurityInfo>("/admin/security")
+      .then(setSecurity)
+      .catch(() => setSecurity(null));
   }, []);
+  const [security, setSecurity] = useState<SecurityInfo | null>(null);
   // টেনে সাজানো: ধরলাম → টানলাম → ছাড়লাম
   const [dragId, setDragId] = useState<string>("");
   const [overId, setOverId] = useState<string>("");
@@ -376,7 +402,7 @@ export default function Admin({
             navigate("/");
           }}
         >
-          <img src="/assets/ssc96-logo.webp" alt="SSC 96" />
+          <img src="/assets/ssc96-logo-v2.webp" alt="SSC 96" />
           <div>
             RANGPUR <b>SSC 96</b>
             <small>আয়োজক প্যানেল</small>
@@ -572,6 +598,66 @@ export default function Admin({
                         color="blue"
                       />
                     </div>
+                    <section className="admin-panel-card security-card">
+                      <div className="panel-card-heading">
+                        <h3>
+                          <ShieldCheck size={16} /> নিরাপত্তা
+                        </h3>
+                        <span className="security-badge">
+                          সক্রিয় সুরক্ষা
+                        </span>
+                      </div>
+                      <p className="admin-note">
+                        যে সুরক্ষাগুলো সবসময় চালু আছে: সেশন কুকি httpOnly ও
+                        signed · শুধু এই সাইটের উৎস থেকে বদল-অনুরোধ · এক
+                        মিনিটে ১৫০ অনুরোধের সীমা · ভুল পাসওয়ার্ড ৫ বার হলে ৫
+                        মিনিট লক · নিবন্ধনে রোবট-ফাঁদ ও সময়-যাচাই · ছবি
+                        আপলোডে প্রকৃত ছবি কি না যাচাই · HTTPS ও
+                        frameguard/HSTS হেডার।
+                      </p>
+                      {security ? (
+                        <>
+                          <div className="security-grid">
+                            <div>
+                              <span>বাইরের অনুরোধ আটকানো</span>
+                              <strong>{security.human.blockedOrigin}</strong>
+                            </div>
+                            <div>
+                              <span>রোবট আটকানো</span>
+                              <strong>{security.human.blockedBot}</strong>
+                            </div>
+                            <div>
+                              <span>ভুল লগইন</span>
+                              <strong>{security.human.loginFailure}</strong>
+                            </div>
+                            <div>
+                              <span>অস্থায়ী লক</span>
+                              <strong>{security.human.lockout}</strong>
+                            </div>
+                          </div>
+                          {security.recent.length > 0 && (
+                            <ul className="security-log">
+                              {security.recent.slice(0, 5).map((e, i) => (
+                                <li key={`${e.at}-${i}`}>
+                                  <b>
+                                    {SECURITY_KIND_BN[e.kind] || e.kind}
+                                  </b>
+                                  <span>{e.detail}</span>
+                                  <time>{dateTime(new Date(e.at).toISOString())}</time>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {security.recent.length === 0 && (
+                            <p className="security-quiet">
+                              এখনো কোনো সন্দেহজনক কিছু ঘটেনি — সব শান্ত। ✅
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="admin-note">হিসাব আনা হচ্ছে…</p>
+                      )}
+                    </section>
                     <div className="admin-overview-grid">
                       <section className="admin-panel-card pending-overview">
                         <div className="panel-card-heading">
@@ -1357,7 +1443,7 @@ export default function Admin({
                       <div className="logo-row">
                         <span className="logo-preview">
                           <img
-                            src={brandingSection?.imageUrl || "/assets/ssc96-logo.webp"}
+                            src={brandingSection?.imageUrl || "/assets/ssc96-logo-v2.webp"}
                             alt="এখনকার লোগো"
                           />
                         </span>
@@ -1414,7 +1500,7 @@ export default function Admin({
                           লোগোর লিংক (অথবা উপরের বোতামে ছবি দিন)
                           <input
                             value={brandingSection?.imageUrl ?? ""}
-                            placeholder="/assets/ssc96-logo.webp"
+                            placeholder="/assets/ssc96-logo-v2.webp"
                             onChange={(e) =>
                               save("section.save", {
                                 ...brandingSection,

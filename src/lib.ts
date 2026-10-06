@@ -112,10 +112,21 @@ export async function shrinkLogo(file: File): Promise<string> {
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   if ("close" in source) source.close();
-  const dataUrl = canvas.toDataURL("image/jpeg", PHOTO_QUALITY);
-  if (!/^data:image\/jpeg;base64,/.test(dataUrl) || dataUrl.length < 200)
+  // ⚠️ লোগো PNG হিসেবেই রাখা হয় — JPEG করলে স্বচ্ছ অংশ কালো হয়ে যায়
+  // (হেডারে কালো বাক্স দেখানোর আসল কারণ ছিল এটাই)।
+  const dataUrl = canvas.toDataURL("image/png");
+  if (!/^data:image\/png;base64,/.test(dataUrl) || dataUrl.length < 200)
     throw new Error("ছবিটি প্রস্তুত করা যায়নি। অন্য ছবি দিয়ে চেষ্টা করুন।");
   return dataUrl;
+}
+
+// বান্ডেল করা লোগো — ডেটাবেজের লিংক ভাঙা থাকলে বা ফাইল হারালে এটাই দেখানো হয়
+export const LOGO_URL = "/assets/ssc96-logo-v2.webp";
+export function logoFallback(e: { currentTarget: HTMLImageElement }) {
+  const img = e.currentTarget;
+  if (img.dataset.fallbackDone) return;
+  img.dataset.fallbackDone = "1";
+  img.src = LOGO_URL;
 }
 
 export const post = <T>(path: string, body: unknown) =>

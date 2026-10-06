@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { Site } from "../types";
 import BannerCollage from "./BannerCollage";
-import { bn, money, timeLabel } from "../lib";
+import { bn, logoFallback, money, timeLabel } from "../lib";
 import { Eyebrow, Star, useReveal } from "./UI";
 import RegistrationForm from "./RegistrationForm";
 interface Props {
@@ -126,7 +126,8 @@ export default function Home({ site, onTicket, navigate }: Props) {
               }}
             >
               <img
-                src={branding?.imageUrl || "/assets/ssc96-logo.webp"}
+                src={branding?.imageUrl || "/assets/ssc96-logo-v2.webp"}
+                onError={logoFallback}
                 alt="রংপুর এসএসসি ব্যাচ ১৯৯৬ লোগো"
                 width="49"
                 height="49"

@@ -72,6 +72,9 @@ export default function RegistrationForm({
     [error, setError] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  // রোবট ঠেকানোর দুই উপায়: (ক) ফর্ম কখন খুলেছে তার সময় (খ) লুকানো ফাঁদ-ঘর
+  const formOpenedAt = useRef(Date.now());
+  const [honeypot, setHoneypot] = useState("");
   // ফর্মের ঘরগুলো এখন অ্যাডমিন প্যানেল থেকেই আসে (মূল ঘর + নিজের যোগ করা ঘর)
   const fields = (site.formFields || [])
     .slice()
@@ -204,6 +207,9 @@ export default function RegistrationForm({
           amount: total,
         },
         consent,
+        // রোবট-যাচাইয়ের তথ্য: ফর্ম কতক্ষণ আগে খোলা হলো + লুকানো ঘর
+        _t: formOpenedAt.current,
+        _hp: honeypot,
       });
       saveTicket(result.trackingKey, result.registration);
       setSuccess(result);
@@ -557,6 +563,18 @@ export default function RegistrationForm({
         </div>
       ) : (
         <form onSubmit={submit} noValidate>
+          {/* রোবট-ফাঁদ: মানুষ এই ঘরটি দেখে না; স্বয়ংক্রিয় স্ক্রিপ্ট ভরে ফেলে → জমা বাতিল */}
+          <label className="hp-field" aria-hidden="true" tabIndex={-1}>
+            প্রতিষ্ঠানের নাম
+            <input
+              type="text"
+              name="company"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </label>
           {step === 0 && (
             <div className="form-step-content">
               <div className="form-step-title">

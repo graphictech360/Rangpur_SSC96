@@ -75,7 +75,7 @@ export const seedSections = [
       "RANGPUR SSC 96",
       "বন্ধুত্বের উৎসব",
       "",
-      "/assets/ssc96-logo.webp",
+      "/assets/ssc96-logo-v2.webp",
     ],
     [
       "marquee",

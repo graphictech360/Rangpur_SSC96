@@ -86,7 +86,7 @@ export default function App() {
   if (!ready || !site)
     return (
       <div className="app-loading">
-        <img src="/assets/ssc96-logo.webp" alt="SSC 96" />
+        <img src="/assets/ssc96-logo-v2.webp" alt="SSC 96" />
         <h1>বন্ধুত্বের উৎসব</h1>
         {error ? (
           <>

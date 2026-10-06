@@ -33,6 +33,16 @@ import {
   navItemSchema,
   feesSchema,
 } from "./domain.mjs";
+import {
+  record as recordSecurity,
+  eventsSnapshot,
+  loginLockRemaining,
+  lockMessageBn,
+  noteLoginFailure,
+  noteLoginSuccess,
+  botGuard,
+  cleanText,
+} from "./security.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
 const mode = process.env.DATA_MODE || "demo";
@@ -179,16 +189,35 @@ app.use(
             fontSrc: ["'self'", "data:"],
             connectSrc: ["'self'"],
             mediaSrc: ["'self'", "blob:"],
-            frameAncestors: null,
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+            frameAncestors: ["'self'"],
             upgradeInsecureRequests: [],
           },
         }
       : false,
-    frameguard: false,
+    // কেউ যেন সাইটটিকে নিজের পেজের ভেতরে (iframe) ঢুকিয়ে প্রতারণা করতে না পারে
+    frameguard: { action: "sameorigin" },
+    // (Permissions-Policy হেডারটি নিচে আলাদা করে বসানো — এই helmet সংস্করণে
+    //  সেই অপশনটি নেই, তাই নিজের মিডলওয়্যার দিয়ে দেওয়া হচ্ছে)
+    // যেকোনো প্রেরককে শুধু ডোমেইনটুকু জানানো হয়, পুরো ঠিকানা নয়
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    // HTTPS বাধ্যতামূলক (শুধু আসল সাইটে; লোকাল ডেমোতে নয়)
+    hsts: production
+      ? { maxAge: 15552000, includeSubDomains: true, preload: false }
+      : false,
     crossOriginEmbedderPolicy: false,
-    referrerPolicy: { policy: "no-referrer" },
   }),
 );
+// ক্যামেরা দরকার কেবল গেট-স্ক্যানারে (QR পড়তে); বাকি সব সেন্সর বন্ধ
+app.use((_, res, next) => {
+  res.set(
+    "Permissions-Policy",
+    'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=()',
+  );
+  next();
+});
 app.use(compression());
 app.use(express.json({ limit: "64kb" }));
 app.use(
@@ -215,8 +244,10 @@ app.use("/api", (req, res, next) => {
   ) {
     const expected =
       process.env.APP_ORIGIN || `${req.protocol}://${req.get("host")}`;
-    if (req.get("origin") !== expected)
+    if (req.get("origin") !== expected) {
+      recordSecurity("blockedOrigin", `${req.method} ${req.originalUrl}`, req);
       return res.status(403).json({ error: "এই উৎস থেকে অনুরোধ অনুমোদিত নয়।" });
+    }
   }
   next();
 });
@@ -335,6 +366,14 @@ app.post(
     res.json({ ...uploaded, section: result });
   }),
 );
+// ── নিরাপত্তার হিসাব (শুধু অ্যাডমিন দেখতে পান) ──
+app.get(
+  "/api/admin/security",
+  wrap(async (req, res) => {
+    await auth(req, res, true);
+    res.json(eventsSnapshot());
+  }),
+);
 app.get(
   "/api/site",
   wrap(async (_, res) => {
@@ -346,7 +385,20 @@ app.post(
   "/api/registrations",
   publicLimit,
   wrap(async (req, res) => {
+    // রোবট ঠেকানো: লুকানো ফাঁদ-ঘর বা অস্বাভাবিক দ্রুত জমা → চুপচাপ আটকানো
+    const botReason = botGuard(req.body);
+    if (botReason) {
+      recordSecurity("blockedBot", botReason.slice(0, 60), req);
+      throw new AppError(botReason, 400);
+    }
     const input = registrationSchema.parse(req.body);
+    // লেখা পরিষ্কার: HTML ট্যাগ ও নিয়ন্ত্রণ-অক্ষর বাদ
+    input.participant.name = cleanText(input.participant.name, 120);
+    input.participant.school = cleanText(input.participant.school, 200);
+    input.participant.location = cleanText(input.participant.location, 200);
+    input.participant.sscRoll = cleanText(input.participant.sscRoll, 30);
+    input.participant.sscRegistration = cleanText(input.participant.sscRegistration, 40);
+    if (input.notes) input.notes = cleanText(input.notes, 600);
     // অ্যাডমিন কোন ঘর বাধ্যতামূলক রেখেছেন / লুকিয়ে দিয়েছেন — সেটিই নিয়ম
     {
       const cfg =
@@ -427,6 +479,8 @@ app.post(
         password: z.string().min(1).max(200),
       })
       .parse(req.body);
+    const lockedFor = loginLockRemaining(req, email);
+    if (lockedFor > 0) throw new AppError(lockMessageBn(lockedFor), 429);
     let user;
     if (mode === "demo") {
       if (email === "admin@ssc96.demo" && password === "Festival96!")
@@ -438,14 +492,31 @@ app.post(
           email,
           role: "scanner",
         };
-      else throw new AppError("ইমেইল বা পাসওয়ার্ড সঠিক নয়।", 401);
+      else {
+        recordSecurity("loginFailure", `ডেমো লগইন: ${email}`, req);
+        const state = noteLoginFailure(req, email);
+        throw new AppError(
+          state.locked
+            ? lockMessageBn(5 * 60 * 1000)
+            : `ইমেইল বা পাসওয়ার্ড সঠিক নয়। অবশিষ্ট চেষ্টা: ${state.left}টি।`,
+          state.locked ? 429 : 401,
+        );
+      }
     } else {
       const { data, error } = await makeClient().auth.signInWithPassword({
         email,
         password,
       });
-      if (error || !data.session)
-        throw new AppError("ইমেইল বা পাসওয়ার্ড সঠিক নয়।", 401);
+      if (error || !data.session) {
+        recordSecurity("loginFailure", `লগইন: ${email}`, req);
+        const state = noteLoginFailure(req, email);
+        throw new AppError(
+          state.locked
+            ? lockMessageBn(5 * 60 * 1000)
+            : "ইমেইল বা পাসওয়ার্ড সঠিক নয়।",
+          state.locked ? 429 : 401,
+        );
+      }
       user = {
         id: data.user.id,
         email,
@@ -456,6 +527,7 @@ app.post(
       const identity = await rpc("staff_identity", {}, user);
       user = { ...user, ...identity };
     }
+    noteLoginSuccess(req, email);
     res.cookie("r96_session", packSession(user), cookieOptions(req));
     res.json({
       id: user.id,
@@ -520,6 +592,7 @@ app.get(
         console.error("[quick-login] ভূমিকা পড়া যায়নি:", e?.message || e);
       }
     }
+    noteLoginSuccess(req, email);
     res.cookie("r96_session", packSession(user), cookieOptions(req));
     try {
       // লগইনের হিসাব রেখে দিই (প্যানেলের লগে দেখা যাবে)

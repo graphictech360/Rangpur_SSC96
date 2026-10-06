@@ -155,7 +155,7 @@ export default function Scanner({
           }}
         >
           <img
-            src="/assets/ssc96-logo.webp"
+            src="/assets/ssc96-logo-v2.webp"
             alt="SSC 96"
             width="44"
             height="44"

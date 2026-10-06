@@ -264,7 +264,7 @@ export default function TicketPanel({
                   <img
                     src={
                       site.sections.find((s) => s.key === "branding")
-                        ?.imageUrl || "/assets/ssc96-logo.webp"
+                        ?.imageUrl || "/assets/ssc96-logo-v2.webp"
                     }
                     alt="SSC 96"
                   />

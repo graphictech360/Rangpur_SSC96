@@ -41,6 +41,23 @@
 - Current sessions in memory: one server instance recommended; multi-instance deployment needs shared session infrastructure। Restart logs staff out; stable production SESSION_SECRET keeps device cookie signature valid।
 - Service worker শুধু static `/assets/` cache করে; tickets, participant/payment data, admin APIs ও check-in requests cache করে না। **Offline check-in নেই।**
 
+## অ্যাপের ভেতরের নিরাপত্তা (R15 — এখন সত্যিই বসানো)
+
+`server/security.mjs` ও `server/index.mjs`-এ যা চালু আছে, এবং `vercel.json`-এ পুরো সাইটের জন্য হেডার:
+
+- **সেশন:** `r96_session` কুকি signed + `httpOnly` + `sameSite=strict` + production-এ `secure`; মেয়াদ ৮ ঘণ্টা।
+- **উৎস-যাচাই:** POST/PUT/PATCH/DELETE-এ Origin নিজের সাইট না হলে `403` (বাইরের সাইট থেকে ফর্ম/লগইন চালানো যায় না) এবং ঘটনাটি হিসাবে ওঠে।
+- **ব্রুট-ফোর্স:** এক `ইমেইল+আইপি` থেকে ৫ বার ভুল পাসওয়ার্ড → ৫ মিনিট `429` (window ১৫ মিনিট); সফল লগইনে হিসাব রিসেট।
+- **রোবট-যাচাই:** নিবন্ধনে লুকানো ফাঁদ-ঘর (`_hp`) এবং সময়-যাচাই (`_t`, কমপক্ষে ১.৫ সেকেন্ড, সর্বোচ্চ ১২ ঘণ্টা) → ব্যর্থ হলে `400`; ডেমো/প্রিভিউ সার্ভারেও একই নিয়ম।
+- **লেখা পরিষ্কার:** HTML ট্যাগ ও নিয়ন্ত্রণ-অক্ষর বাদ (`cleanText`)।
+- **হেডার:** CSP (লাইভ), HSTS (৬ মাস, includeSubDomains), `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, Referrer-Policy, Permissions-Policy — ক্যামেরা শুধু নিজের সাইটে (গেট-স্ক্যানার), মাইক/লোকেশন/পেমেন্ট/usb/serial বন্ধ। HTML পেজেও হেডার যায় (আগে শুধু API-তে যেত), তাই `vercel.json`-এ সেট করা।
+- **ক্যাশ:** সব API উত্তর `no-store`; ছবি/ওয়েবফন্ট `max-age=0, must-revalidate`; হ্যাশ-করা js/css দীর্ঘ-মেয়াদি immutable। Service worker কিছু precache করে না — সবসময় আগে নেটওয়ার্ক (R15-এ বদলানো)।
+- **নিরাপত্তা-প্রতিবেদন:** `GET /api/admin/security` (শুধু অ্যাডমিন) → কাউন্টার + সাম্প্রতিক ঘটনা + বাংলা সারসংক্ষেপ; অ্যাডমিন প্যানেলের “এক নজরে” ট্যাবে কার্ড। হিসাব মেমোরিতে থাকে, তাই অ্যাপ রিস্টার্ট/নতুন ডিপ্লয়ে শূন্য থেকে শুরু হয়।
+- **সীমা:** `/api`-তে মিনিটে ১৫০ অনুরোধ; লগইন ও নিবন্ধনে আরও কড়া আলাদা সীমা (`publicLimit`)।
+- **এখনো নেই (দরকার হলে পরে যোগ করা যায়):** CAPTCHA, MFA, IP-ভিত্তিক স্থায়ী ব্লকলিস্ট, লগ-ফাইল সংরক্ষণ (এখন শুধু সাম্প্রতিক ৬০টি ঘটনা মেমোরিতে)।
+
+পরীক্ষা: `node tests/security.mjs` — ২০টি যাচাই (হেডার, উৎস-আটকানো, রোবট-ফাঁদ, লগইন লক, নিরাপত্তা-প্রতিবেদন, `no-store`)।
+
 ## Before real registrations open
 
 1. Remote Supabase migration + seed চালানো ও organizer/staff roles যাচাই।

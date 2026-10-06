@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Heart } from "lucide-react";
+import { logoFallback } from "../lib";
 
 /**
  * ব্যানার কোলাজ: একাধিক ছবি থাকলে নিজে থেকেই ধীরে ধীরে বদলায়
@@ -51,7 +52,8 @@ export default function BannerCollage({ images, emblem }: Props) {
       ) : (
         <div className="collage-emblem">
           <img
-            src={emblem || "/assets/ssc96-logo.webp"}
+            src={emblem || "/assets/ssc96-logo-v2.webp"}
+                      onError={logoFallback}
             alt="SSC 96 ব্যাচ প্রতীক"
           />
           <b>রংপুর • ১৯৯৬</b>
@@ -83,7 +85,8 @@ export default function BannerCollage({ images, emblem }: Props) {
                 ) : (
                   <div className="collage-emblem">
                     <img
-                      src={emblem || "/assets/ssc96-logo.webp"}
+                      src={emblem || "/assets/ssc96-logo-v2.webp"}
+                      onError={logoFallback}
                       alt="SSC 96 ব্যাচ প্রতীক"
                     />
                     <b>রংপুর • ১৯৯৬</b>

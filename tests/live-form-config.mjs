@@ -170,6 +170,8 @@ try {
   ok("লিংক মোছা গেল", !(await siteNow()).nav.some((n) => n.label === "ফেসবুক গ্রুপ"));
 
   /* ৬) লোগো আপলোড (image-2-এর লাল বাক্সের অংশ) */
+  // আপলোডের আগের লোগো-লিংকটি ধরে রাখি — শেষে ঠিক এইটাই ফিরিয়ে আনব
+  const originalBranding = (await siteNow()).sections.find((s) => s.key === "branding");
   const logo = await call("/admin/logo", { photo: smallPng });
   ok(
     "নতুন লোগো আপলোড হয়ে হেডারে বসে গেল",
@@ -191,13 +193,15 @@ try {
     key: "branding",
     title: branding.title,
     subtitle: branding.subtitle,
-    imageUrl: "/assets/ssc96-logo.webp",
+    imageUrl: originalBranding.imageUrl,
     order: branding.order,
     visible: true,
   });
   ok(
     "আগের লোগো ফিরিয়ে আনা গেল",
-    (await siteNow()).sections.find((s) => s.key === "branding").imageUrl === "/assets/ssc96-logo.webp",
+    (await siteNow()).sections.find((s) => s.key === "branding").imageUrl ===
+      originalBranding.imageUrl,
+    originalBranding.imageUrl.slice(-40),
   );
 
   /* ৭) পেমেন্ট/টিকিট কিছু ভাঙেনি */

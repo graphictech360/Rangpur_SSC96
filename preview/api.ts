@@ -149,6 +149,17 @@ function validateMutation(action: string, data: unknown) {
   throw new AppError("অজানা অ্যাডমিন অ্যাকশন।");
 }
 
+// ── রোবট-যাচাই (সার্ভারের হুবহু প্রতিরূপ): ফাঁদ-ঘর বা খুব দ্রুত জমা → বাতিল ──
+const MIN_FILL_MS = 1500;
+function botGuard(body: any) {
+  const honey = typeof body?._hp === "string" ? body._hp.trim() : "";
+  if (honey) return "লুকানো ঘরে লেখা পাওয়া গেছে — অনুরোধটি রোবটের বলে বাতিল হলো।";
+  const started = Number(body?._t);
+  if (Number.isFinite(started) && started > 0 && Date.now() - started < MIN_FILL_MS)
+    return "ফর্মটি একটু আগে-ভাগেই দেখা হচ্ছে — আবার জমা দিন।";
+  return "";
+}
+
 type Result = { status: number; data: unknown };
 
 async function route(
@@ -167,11 +178,14 @@ async function route(
     return { status: 200, data: { url: photo, demo: true } };
   }
 
-  if (path === "/registrations" && method === "POST")
+  if (path === "/registrations" && method === "POST") {
+    const botReason = botGuard(body);
+    if (botReason) throw new AppError(botReason, 400);
     return {
       status: 201,
       data: await demo.register(registrationSchema.parse(body)),
     };
+  }
 
   if (path === "/ticket" && method === "POST") {
     const key = z

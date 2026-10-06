@@ -88,7 +88,7 @@ export default function ResetPassword({
       </button>
       <div className="login-layout">
         <div className="login-art">
-          <img src="/assets/ssc96-logo.webp" alt="SSC 96 লোগো" />
+          <img src="/assets/ssc96-logo-v2.webp" alt="SSC 96 লোগো" />
           <span>FRIENDS FOREVER</span>
           <h1>
             পাসওয়ার্ড,
