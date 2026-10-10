@@ -17,11 +17,14 @@ import {
   ChevronDown,
   ScanLine,
   Sparkles,
+  Navigation,
+  ExternalLink,
 } from "lucide-react";
 import type { Site } from "../types";
 import BannerCollage from "./BannerCollage";
 import { bn, logoFallback, money, timeLabel } from "../lib";
 import { Eyebrow, Star, useReveal } from "./UI";
+import MemoryWall from "./MemoryWall";
 import RegistrationForm from "./RegistrationForm";
 interface Props {
   site: Site;
@@ -443,6 +446,13 @@ export default function Home({ site, onTicket, navigate }: Props) {
             </div>
           </section>
         )}
+        {/* ── R20: আগের সফল আয়োজনের স্মৃতি — story ও festival-এর মাঝে ── */}
+        {(site.albums || []).length > 0 && (
+          <MemoryWall
+            albums={site.albums || []}
+            section={section("past_events")}
+          />
+        )}
         {festival && (
           <section className="festival-section section-padding" id="festival">
             <div className="container">
@@ -548,6 +558,7 @@ export default function Home({ site, onTicket, navigate }: Props) {
                   </span>
                 </p>
               </div>
+              <VenueMap site={site} />
             </div>
             <div className="registration-form-wrap reveal">
               <RegistrationForm site={site} onTicket={onTicket} />
@@ -633,6 +644,8 @@ export default function Home({ site, onTicket, navigate }: Props) {
                 "marquee",
                 "festival",
                 "faq",
+                // R23: স্মৃতি-সেকশনের লেখা MemoryWall-ই দেখায় — এখানে আবার নয়
+                "past_events",
               ].includes(s.key) && !s.key.startsWith("faq_"),
           )
           .map((s) => (
@@ -723,6 +736,10 @@ export default function Home({ site, onTicket, navigate }: Props) {
                 </a>
               )}
               <span>{site.event.tagline}</span>
+              <span className="footer-dev">
+                Contact for any app development — Arif ·{" "}
+                <a href="tel:+8801787898951">+880 1787-898951</a>
+              </span>
               <div>
                 <button onClick={() => navigate("/admin")}>
                   <ShieldCheck size={15} />
@@ -780,5 +797,131 @@ function FeeCard({
         />
       </svg>
     </article>
+  );
+}
+/** R21/R22: ভেন্যুর লাইভ লোকেশন ম্যাপ — রেজিস্ট্রেশন সেকশনের বাঁ পাশে।
+ *  অ্যাডমিন প্যানেল (অনুষ্ঠান ও ফি ট্যাব) থেকে ঠিকানা/লিংক বদলানো ও লুকানো যায়।
+ *  R22: "অ্যাপেই রুট দেখো" — ট্যাব না বদলেই নিজের অবস্থান থেকে বাস/বাইক/হাঁটা রুট;
+ *  চাইলে আলাদা ট্যাবে গুগল ম্যাপ অ্যাপেও খোলা যায়। */
+function VenueMap({ site }: { site: Site }) {
+  const e = site.event;
+  // নিজের অবস্থান (lat,lng) — পাওয়া গেলে ম্যাপটাই রুট-ভিউ হয়ে যায়
+  const [from, setFrom] = useState<string | null>(null);
+  // r = বাস/গণপরিবহন · d = বাইক/গাড়ি · w = হাঁটা
+  const [travel, setTravel] = useState<"r" | "d" | "w">("r");
+  const [locMsg, setLocMsg] = useState("");
+  if (e.mapVisible === false) return null;
+  // ম্যাপে যে ঠিকানা খোঁজা হবে: অ্যাডমিনের দেওয়া ঠিকানা, না থাকলে ভেন্যু + শহর
+  const dest = (e.mapQuery || "").trim() || `${e.venue}, ${e.city}`;
+  const link = (e.mapLink || "").trim();
+  const isEmbedLink = /\/maps\/embed|output=embed/.test(link);
+  // রুট-ভিউ: নিজের অবস্থান → ভেন্যু; নইলে অ্যাডমিনের এমবেড-লিংক বা ভেন্যুর ম্যাপ
+  const embedSrc = from
+    ? `https://maps.google.com/maps?saddr=${encodeURIComponent(from)}&daddr=${encodeURIComponent(dest)}&dirflg=${travel}&hl=bn&output=embed`
+    : isEmbedLink
+      ? link
+      : `https://maps.google.com/maps?q=${encodeURIComponent(dest)}&z=14&hl=bn&output=embed`;
+  const directions = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=${travel === "r" ? "transit" : travel === "w" ? "walking" : "driving"}`;
+  const openLink =
+    link && !isEmbedLink
+      ? link
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest)}`;
+  const locate = () => {
+    if (!("geolocation" in navigator)) {
+      setLocMsg("এই ব্রাউজারে লোকেশন পাওয়া যায় না — নিচের লিংকে গুগল ম্যাপে রুট দেখো।");
+      return;
+    }
+    setLocMsg("তোমার অবস্থান খোঁজা হচ্ছে…");
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        setFrom(`${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}`);
+        setLocMsg("");
+      },
+      () => {
+        setLocMsg(
+          "লোকেশনের অনুমতি পাওয়া যায়নি। ব্রাউজারের অনুমতি দিয়ে আবার চাপো, অথবা নিচের লিংকে গুগল ম্যাপ অ্যাপে রুট দেখো।",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
+  return (
+    <div className="venue-map reveal">
+      <div className="venue-map-head">
+        <span className="venue-map-icon">
+          <MapPin size={19} />
+        </span>
+        <p>
+          <b>ভেন্যুর লোকেশন ম্যাপ</b>
+          <span>
+            {e.venue}, {e.city} — ম্যাপ দেখে সহজেই চলে এসো।
+          </span>
+        </p>
+      </div>
+      <div className="venue-map-frame">
+        {import.meta.env.VITE_OFFLINE_PREVIEW ? (
+          // অফলাইন প্রিভিউ ফাইলে বাইরের রিকোয়েস্ট যায় না — আসল সাইটে ম্যাপ দেখা যায়
+          <div className="venue-map-offline">
+            <MapPin size={28} />
+            <b>{dest}</b>
+            <span>অফলাইন প্রিভিউতে ম্যাপ লোড হয় না — আসল সাইটে দেখা যাবে।</span>
+          </div>
+        ) : (
+          <iframe
+            key={embedSrc}
+            src={embedSrc}
+            title={from ? `রুট: আমার অবস্থান → ${dest}` : `ম্যাপ: ${e.venue}, ${e.city}`}
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        )}
+      </div>
+      {from && (
+        <div className="venue-route-modes" role="tablist" aria-label="যাতায়াতের ধরন">
+          {(
+            [
+              ["r", "🚌 বাস/গণপরিবহন"],
+              ["d", "🏍️ বাইক/গাড়ি"],
+              ["w", "🚶 হাঁটা"],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              role="tab"
+              aria-selected={travel === mode}
+              className={travel === mode ? "on" : ""}
+              onClick={() => setTravel(mode)}
+            >
+              {label}
+            </button>
+          ))}
+          <button type="button" className="route-reset" onClick={() => setFrom(null)}>
+            ✕ রুট বন্ধ
+          </button>
+        </div>
+      )}
+      <div className="venue-map-actions">
+        <button type="button" className="button button-primary" onClick={locate}>
+          <Navigation size={16} />
+          {from ? "অবস্থান আবার নাও" : "অ্যাপেই রুট দেখো (আমার অবস্থান থেকে)"}
+        </button>
+        <a
+          className="button button-outline"
+          href={from ? directions : openLink}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <ExternalLink size={16} />
+          {from ? "গুগল ম্যাপ অ্যাপে এই রুট" : "গুগল ম্যাপে খোলো"}
+        </a>
+      </div>
+      {locMsg && <p className="venue-map-note venue-map-alert">{locMsg}</p>}
+      <p className="venue-map-note">
+        “অ্যাপেই রুট দেখো” চাপলে এই ম্যাপেই তোমার এখনকার অবস্থান থেকে ভেন্যু
+        পর্যন্ত পথ আসবে — বাস, বাইক/গাড়ি বা হাঁটা বেছে নাও; অন্য ট্যাবে যেতে হবে না।
+      </p>
+    </div>
   );
 }

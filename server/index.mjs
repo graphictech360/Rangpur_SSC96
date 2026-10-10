@@ -14,6 +14,11 @@ import WebSocketImpl from "ws";
 import { z } from "zod";
 import { demo, initDemo } from "./demo-store.mjs";
 import {
+  pushConfig,
+  pushInternalKey,
+  sendPushToAll,
+} from "./push.mjs";
+import {
   notifyConfig,
   notifyNewRegistration,
   quickLoginUrl,
@@ -27,11 +32,16 @@ import {
   participantSchema,
   eventSchema,
   sectionSchema,
+  albumSchema,
+  canDo,
   scheduleSchema,
   accountSchema,
   formFieldSchema,
   navItemSchema,
   feesSchema,
+  expenseSchema,
+  donationSchema,
+  teamMemberSchema,
 } from "./domain.mjs";
 import {
   record as recordSecurity,
@@ -188,7 +198,14 @@ app.use(
             imgSrc: ["'self'", "https:", "data:", "blob:"],
             fontSrc: ["'self'", "data:"],
             connectSrc: ["'self'"],
-            mediaSrc: ["'self'", "blob:"],
+            mediaSrc: ["'self'", "https:", "blob:"],
+            // R21/R22: গুগল ম্যাপ + ইউটিউব (স্মৃতি-ভিডিও) iframe অনুমোদিত
+            frameSrc: [
+              "'self'",
+              "https://www.google.com",
+              "https://maps.google.com",
+              "https://www.youtube-nocookie.com",
+            ],
             objectSrc: ["'none'"],
             baseUri: ["'self'"],
             formAction: ["'self'"],
@@ -214,7 +231,8 @@ app.use(
 app.use((_, res, next) => {
   res.set(
     "Permissions-Policy",
-    'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=()',
+    // ক্যামেরা: QR স্ক্যানার · লোকেশন: ভেন্যুর রুট-ম্যাপ (R22) — দুটোই শুধু নিজের পেজে
+    'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), serial=()',
   );
   next();
 });
@@ -366,6 +384,20 @@ app.post(
     res.json({ ...uploaded, section: result });
   }),
 );
+// ── আগের আয়োজনের অ্যালবামের ছবি আপলোড (content-অনুমতি লাগে) ──
+app.post(
+  "/api/admin/memory-photo",
+  express.json({ limit: "3mb" }),
+  wrap(async (req, res) => {
+    const user = await freshDemoUser(await auth(req, res, true));
+    if (!canDo(user, "album.save"))
+      throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
+    const { photo } = z
+      .object({ photo: z.string().min(64).max(2_600_000) })
+      .parse(req.body);
+    res.json(await uploadPhoto(photo, "memories"));
+  }),
+);
 // ── নিরাপত্তার হিসাব (শুধু অ্যাডমিন দেখতে পান) ──
 app.get(
   "/api/admin/security",
@@ -452,6 +484,32 @@ app.post(
     } catch (e) {
       console.error("[notify] খবর পাঠাতে সমস্যা:", e?.message || e);
     }
+    // R26: অ্যাডমিন/মডারেটরের ব্রাউজার ও মোবাইলে পুশ নোটিফিকেশন।
+    // পুশ ব্যর্থ হলেও নিবন্ধন আগেই সফল — কিছু থামানো হয় না।
+    try {
+      const targets =
+        mode === "demo"
+          ? await demo.pushTargets()
+          : await rpc("push_targets", { p_key: pushInternalKey() });
+      if (Array.isArray(targets) && targets.length) {
+        const reg = data?.registration;
+        const people =
+          1 + (Number(reg?.spouse) || 0) + (Number(reg?.children) || 0);
+        const { sent: ok, dead } = await sendPushToAll(targets, {
+          title: "🎟️ নতুন নিবন্ধন",
+          body: `${reg?.participant?.name || "নতুন বন্ধু"} — ${reg?.ticketNumber || ""} · মোট ${people} জন`,
+          url: "/admin",
+          tag: `reg-${reg?.id || Date.now()}`,
+        });
+        if (ok) console.log(`[push] ${ok}টি ডিভাইসে নোটিফিকেশন গেল`);
+        if (dead.length)
+          mode === "demo"
+            ? await demo.pushPrune(dead)
+            : await rpc("push_prune", { p_key: pushInternalKey(), p_endpoints: dead });
+      }
+    } catch (e) {
+      console.error("[push] পুশ পাঠাতে সমস্যা:", e?.message || e);
+    }
     res.status(201).json(data);
   }),
 );
@@ -493,14 +551,19 @@ app.post(
           role: "scanner",
         };
       else {
-        recordSecurity("loginFailure", `ডেমো লগইন: ${email}`, req);
-        const state = noteLoginFailure(req, email);
-        throw new AppError(
-          state.locked
-            ? lockMessageBn(5 * 60 * 1000)
-            : `ইমেইল বা পাসওয়ার্ড সঠিক নয়। অবশিষ্ট চেষ্টা: ${state.left}টি।`,
-          state.locked ? 429 : 401,
-        );
+        // মেইন অ্যাডমিনের যোগ করা টিম-সদস্য (সহ-অ্যাডমিন/স্টাফ) — ডেমো স্টোরে থাকে
+        const member = await demo.teamLogin(email, password);
+        if (member) user = { ...member, teamMember: true };
+        else {
+          recordSecurity("loginFailure", `ডেমো লগইন: ${email}`, req);
+          const state = noteLoginFailure(req, email);
+          throw new AppError(
+            state.locked
+              ? lockMessageBn(5 * 60 * 1000)
+              : `ইমেইল বা পাসওয়ার্ড সঠিক নয়। অবশিষ্ট চেষ্টা: ${state.left}টি।`,
+            state.locked ? 429 : 401,
+          );
+        }
       }
     } else {
       const { data, error } = await makeClient().auth.signInWithPassword({
@@ -534,6 +597,7 @@ app.post(
       name: user.name,
       email: user.email,
       role: user.role,
+      permissions: user.permissions || null,
     });
   }),
 );
@@ -691,13 +755,22 @@ app.get(
   wrap(async (req, res) => {
     const user = await auth(req, res);
     if (!user) return res.json(null);
-    let identity =
-      mode === "supabase" ? await rpc("staff_identity", {}, user) : user;
+    let identity;
+    if (mode === "supabase") identity = await rpc("staff_identity", {}, user);
+    else if (user.teamMember) {
+      // ডেমো টিম-সদস্য: অনুমতি মাঝপথে বদলালে বা অ্যাকাউন্ট বন্ধ হলে এখানেই ধরা পড়ে
+      identity = await demo.teamIdentity(user.id);
+      if (!identity) {
+        res.clearCookie("r96_session", cookieOptions(req));
+        return res.json(null);
+      }
+    } else identity = user;
     res.json({
       id: identity.id,
       name: identity.name,
       email: user.email,
       role: identity.role,
+      permissions: identity.permissions || null,
     });
   }),
 );
@@ -716,6 +789,77 @@ app.get(
   }),
 );
 // ── প্যানেল থেকে “পরীক্ষা মেইল” — সত্যিই পাঠিয়ে ফল জানায় ─────────
+/* ── R26: পুশ নোটিফিকেশন ও বেল-আইকন ─────────────────────────────── */
+app.get(
+  "/api/push/config",
+  wrap(async (req, res) => {
+    await auth(req, res, true);
+    res.json(pushConfig());
+  }),
+);
+const subscriptionSchema = z.object({
+  endpoint: z.string().url().startsWith("https://").max(1000),
+  keys: z.object({
+    p256dh: z.string().min(20).max(300),
+    auth: z.string().min(10).max(100),
+  }),
+  label: z.string().max(120).optional().default(""),
+});
+app.post(
+  "/api/push/subscribe",
+  wrap(async (req, res) => {
+    const user = await auth(req, res, true);
+    const sub = subscriptionSchema.parse(req.body);
+    res.json(
+      mode === "demo"
+        ? await demo.pushSubscribe(user, sub, sub.label)
+        : await rpc(
+            "push_subscribe",
+            {
+              p_endpoint: sub.endpoint,
+              p_p256dh: sub.keys.p256dh,
+              p_auth: sub.keys.auth,
+              p_label: sub.label,
+            },
+            user,
+          ),
+    );
+  }),
+);
+app.post(
+  "/api/push/unsubscribe",
+  wrap(async (req, res) => {
+    const user = await auth(req, res, true);
+    const endpoint = z.string().url().max(1000).parse(req.body.endpoint);
+    res.json(
+      mode === "demo"
+        ? await demo.pushUnsubscribe(user, endpoint)
+        : await rpc("push_unsubscribe", { p_endpoint: endpoint }, user),
+    );
+  }),
+);
+app.get(
+  "/api/notifications",
+  wrap(async (req, res) => {
+    const user = await auth(req, res, true);
+    res.json(
+      mode === "demo"
+        ? await demo.notifState(user)
+        : await rpc("notif_state", {}, user),
+    );
+  }),
+);
+app.post(
+  "/api/notifications/seen",
+  wrap(async (req, res) => {
+    const user = await auth(req, res, true);
+    res.json(
+      mode === "demo"
+        ? await demo.notifMarkSeen(user)
+        : await rpc("notif_mark_seen", {}, user),
+    );
+  }),
+);
 app.post(
   "/api/notify-test",
   loginLimit,
@@ -764,10 +908,18 @@ app.post(
     res.json({ ...result, to: mail.to, subject: mail.subject });
   }),
 );
+// ডেমো টিম-সদস্যের অনুমতি প্রতিবার স্টোর থেকে টাটকা পড়া হয় —
+// মেইন অ্যাডমিন অনুমতি বদলালে/অ্যাকাউন্ট বন্ধ করলে সঙ্গে সঙ্গে কার্যকর
+async function freshDemoUser(user) {
+  if (mode !== "demo" || !user?.teamMember) return user;
+  const identity = await demo.teamIdentity(user.id);
+  if (!identity) throw new AppError("অ্যাকাউন্টটি আর সক্রিয় নেই। আবার লগইন করুন।", 401);
+  return { ...user, ...identity };
+}
 app.get(
   "/api/admin",
   wrap(async (req, res) => {
-    const user = await auth(req, res, true);
+    const user = await freshDemoUser(await auth(req, res, true));
     res.json(
       mode === "demo"
         ? await demo.overview(user)
@@ -779,7 +931,15 @@ const idSchema = z.string().uuid();
 function validateMutation(action, data) {
   if (action === "event.save") return eventSchema.parse(data);
   if (action === "fees.save") return feesSchema.parse(data);
+  // R17: খরচের খাতা, ঐচ্ছিক অনুদান ও টিম-ব্যবস্থাপনা
+  if (action === "expense.save") return expenseSchema.parse(data);
+  if (action === "donation.save") return donationSchema.parse(data);
+  if (action === "team.save") return teamMemberSchema.parse(data);
+  if (["expense.delete", "donation.delete", "team.delete"].includes(action))
+    return z.object({ id: idSchema }).parse(data);
   if (action === "section.save") return sectionSchema.parse(data);
+  if (action === "album.save") return albumSchema.parse(data);
+  if (action === "album.delete") return z.object({ id: idSchema }).parse(data);
   if (action === "schedule.save") return scheduleSchema.parse(data);
   if (action === "account.save") return accountSchema.parse(data);
   if (action === "formField.save") return formFieldSchema.parse(data);
@@ -851,7 +1011,7 @@ function validateMutation(action, data) {
 app.post(
   "/api/admin/mutate",
   wrap(async (req, res) => {
-    const user = await auth(req, res, true);
+    const user = await freshDemoUser(await auth(req, res, true));
     const action = z.string().max(60).parse(req.body.action);
     const payload = validateMutation(action, req.body.payload);
     res.json(

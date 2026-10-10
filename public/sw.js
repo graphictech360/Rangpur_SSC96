@@ -5,7 +5,7 @@
    সবসময় আগে নেটওয়ার্ক থেকে আনা হয় — তাই লোগো বদলালে রিফ্রেশেই নতুনটা
    দেখা যায়; নেট না থাকলে কেবল তখনই পুরোনো কপি ব্যবহার হয়।
    ক্যাশের নাম বদলালে পুরোনো ক্যাশ নিজে থেকেই মুছে যায়। */
-const CACHE = "r96-static-v2";
+const CACHE = "r96-static-v4"; // R26: পুশ নোটিফিকেশন
 /* কিছুই precache করা হয় না — প্রতিটি ছবির সতেজ কপি সবসময় সার্ভারেই থাকে */
 const STATIC = [];
 self.addEventListener("install", (event) =>
@@ -47,5 +47,38 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(event.request).then((cached) => cached || Response.error())),
+  );
+});
+
+/* ── R26: পুশ নোটিফিকেশন — নতুন নিবন্ধনের খবর ─────────────────────
+   অ্যাপ/ব্রাউজার বন্ধ থাকলেও নোটিফিকেশন দেখায়; চাপলে অ্যাডমিন প্যানেল খোলে। */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "🎟️ নতুন নিবন্ধন";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "অ্যাডমিন প্যানেলে বিস্তারিত দেখুন।",
+      icon: "/assets/icon-192.png",
+      badge: "/assets/icon-192.png",
+      tag: data.tag || "r96-registration",
+      data: { url: data.url || "/admin" },
+    }),
+  );
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/admin";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list)
+        if (new URL(c.url).pathname.startsWith("/admin") && "focus" in c)
+          return c.focus();
+      return clients.openWindow(url);
+    }),
   );
 });

@@ -17,6 +17,10 @@ export const seedEvent = {
   city: "রংপুর",
   venueEnglish: "Vinnojogot, Rangpur",
   registrationOpen: true,
+  // R21: ভেন্যুর লোকেশন ম্যাপ — গুগল ম্যাপে এই ঠিকানা খুঁজে দেখানো হয়
+  mapQuery: "ভিন্নজগৎ, রংপুর",
+  mapLink: "",
+  mapVisible: true,
 };
 export const seedSections = [
   {
@@ -38,6 +42,17 @@ export const seedSections = [
     imageUrl: "",
     visible: true,
     order: 1,
+  },
+  {
+    // R22: আগের আয়োজনের স্মৃতি-সেকশনের লেখা — অ্যাডমিন "পেজের লেখা ও ছবি" থেকে বদলাতে পারেন
+    id: randomUUID(),
+    key: "past_events",
+    title: "সফল আয়োজনের স্মৃতি",
+    subtitle: "আগের আড্ডাগুলো",
+    body: "যেখানে একবার বসেছি, সেখানেই গল্প জমেছে — ছবিগুলো নিজে নিজেই বদলাবে, চাইলে ভিডিও-ও দেখে নিতে পারো।",
+    imageUrl: "",
+    visible: true,
+    order: 2,
   },
   {
     id: randomUUID(),
@@ -235,6 +250,73 @@ export const seedSchedule = [
   order,
   visible: true,
 }));
+
+/** R20: ডেমো অ্যালবামের ছবি — রঙিন SVG প্লেসহোল্ডার (অফলাইনেও দেখা যায়) */
+function memoryArt(label, emoji, c1, c2) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/>
+  </linearGradient></defs>
+  <rect width="800" height="600" fill="url(#g)"/>
+  <circle cx="660" cy="110" r="150" fill="#ffffff22"/>
+  <circle cx="120" cy="520" r="190" fill="#00000014"/>
+  <text x="50%" y="46%" font-size="120" text-anchor="middle">${emoji}</text>
+  <text x="50%" y="66%" font-size="40" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="sans-serif">${label}</text>
+  <text x="50%" y="76%" font-size="24" fill="#ffffffcc" text-anchor="middle" font-family="sans-serif">ডেমো ছবি — আসল ছবি অ্যাডমিন থেকে দিন</text>
+</svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+const seedAlbums = [
+  {
+    id: randomUUID(),
+    title: "শেখের টেক, বদরগঞ্জ",
+    dateLabel: "১১ সেপ্টেম্বর ২০২৬",
+    active: true,
+    order: 0,
+    media: [
+      ["আড্ডার শুরু", "🍵", "#2c5f4c", "#88b04b"],
+      ["দুপুরের খাওয়া", "🍛", "#b3542e", "#e9c948"],
+      ["গ্রুপ ছবি", "📸", "#1f4d5f", "#58a4b0"],
+      ["পুরোনো গল্প", "😄", "#5b3a70", "#c86b85"],
+      ["বিদায়ের আগে", "🤝", "#3c6e47", "#a3c585"],
+    ].map(([l, e, a, b], i) => ({
+      id: randomUUID(),
+      kind: "image",
+      url: memoryArt(l, e, a, b),
+      order: i,
+    })),
+  },
+  {
+    id: randomUUID(),
+    title: "আরশাদের বাগানবাড়ি, উত্তম, রংপুর",
+    dateLabel: "২৫ সেপ্টেম্বর ২০২৬",
+    active: true,
+    order: 1,
+    media: [
+      ...[
+        ["বাগানে জমায়েত", "🌳", "#34633e", "#9bc995"],
+        ["চায়ের আসর", "☕", "#7a4a2b", "#d9a05b"],
+        ["স্মৃতিচারণ", "🎙️", "#28496b", "#7fa8d9"],
+        ["হাসির রোল", "😂", "#8a3b4c", "#e78fa0"],
+        ["খেলার ফাঁকে", "🏏", "#44622e", "#b4cf66"],
+        ["সন্ধ্যার গান", "🎸", "#4b3d73", "#9a86c9"],
+        ["সবাই একসাথে", "🫶", "#215c54", "#6fc1ae"],
+      ].map(([l, e, a, b], i) => ({
+        id: randomUUID(),
+        kind: "image",
+        url: memoryArt(l, e, a, b),
+        order: i,
+      })),
+      {
+        id: randomUUID(),
+        kind: "video",
+        url: "https://www.w3schools.com/html/mov_bbb.mp4",
+        order: 7,
+      },
+    ],
+  },
+];
+
 export function initialState() {
   const accounts = ["bkash", "nagad"].flatMap((provider) =>
     collectors.map(([name, mobile], order) => ({
@@ -256,7 +338,7 @@ export function initialState() {
   ];
   const registrations = names.map(
     ([name, school, status, spouse, children, tshirt], i) => {
-      const total = 1499 + spouse * 500 + children * 200;
+      const total = 1020 + spouse * 510 + children * 205;
       const approvedAt =
         status === "approved"
           ? new Date(Date.now() - 86400000).toISOString()
@@ -277,7 +359,7 @@ export function initialState() {
         children,
         food: "সাধারণ",
         notes: "",
-        feeSnapshot: { friend: 1499, spouse: 500, child: 200 },
+        feeSnapshot: { friend: 1020, spouse: 510, child: 205 },
         total,
         status,
         payment: {
@@ -314,8 +396,9 @@ export function initialState() {
   return {
     version: 1,
     event: seedEvent,
-    fees: { friend: 1499, spouse: 500, child: 200 },
+    fees: { friend: 1020, spouse: 510, child: 205 },
     sections: seedSections,
+    albums: structuredClone(seedAlbums),
     schedule: seedSchedule,
     formFields: seedFormFields,
     navItems: seedNavItems,
@@ -324,6 +407,51 @@ export function initialState() {
     registrations,
     devices: [],
     audit: [],
+    // ── R17: টিম (সহ-অ্যাডমিন), খরচের খাতা ও ঐচ্ছিক অনুদান ──
+    team: [
+      {
+        id: randomUUID(),
+        name: "ডেমো সহ-অ্যাডমিন",
+        email: "moderator@ssc96.demo",
+        role: "moderator",
+        password: "Moderator96!",
+        permissions: ["overview", "payments", "expenses"],
+        active: true,
+        createdBy: "ডেমো আয়োজক",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    expenses: [
+      {
+        id: randomUUID(),
+        date: new Date().toISOString().slice(0, 10),
+        title: "ভেন্যু অগ্রিম (ভিন্নজগত)",
+        amount: 5000,
+        note: "ডেমো খরচ — মুছে ফেলা যায়",
+        enteredBy: "ডেমো আয়োজক",
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: randomUUID(),
+        date: new Date().toISOString().slice(0, 10),
+        title: "ব্যানার ও প্রিন্টিং",
+        amount: 1200,
+        note: "",
+        enteredBy: "ডেমো আয়োজক",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    donations: [
+      {
+        id: randomUUID(),
+        date: new Date().toISOString().slice(0, 10),
+        donor: "মাহমুদ হাসান",
+        amount: 2000,
+        note: "ডেমো অনুদান",
+        enteredBy: "ডেমো আয়োজক",
+        createdAt: new Date().toISOString(),
+      },
+    ],
     nextSerial: 6,
     demoTicketKey,
   };

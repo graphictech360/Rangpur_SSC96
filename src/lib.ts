@@ -225,6 +225,26 @@ const csvEscape = (value: unknown) => {
   return `"${s.replaceAll('"', '""')}"`;
 };
 
+/**
+ * ফাইল নামানোর মজবুত পদ্ধতি: লিংকটা DOM-এ যুক্ত করে ক্লিক, URL একটু পরে মুক্ত।
+ * (কিছু ব্রাউজার/এমবেড-ভিউ DOM-এর বাইরের লিংকে ক্লিক উপেক্ষা করে — আগে তাই
+ * ডেমো প্রিভিউ-প্যানেলে CSV চুপচাপ নামত না।)
+ */
+export function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 2000);
+}
+
 /** যেকোনো টেবিল (সারি × কলাম) CSV হিসেবে নামায় — BOM সহ, তাই Excel-এ বাংলা ঠিক আসে। */
 export function downloadTableCsv(
   filename: string,
@@ -234,12 +254,7 @@ export function downloadTableCsv(
     ["\uFEFF" + rows.map((row) => row.map(csvEscape).join(",")).join("\r\n")],
     { type: "text/csv;charset=utf-8" },
   );
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  triggerBlobDownload(blob, filename);
 }
 
 export function downloadCsv(registrations: Registration[]) {
@@ -295,3 +310,18 @@ export function downloadCsv(registrations: Registration[]) {
     ]),
   ]);
 }
+
+/** R22: ভিডিও লিংক থেকে প্রিভিউ-ছবি —
+ *  ইউটিউব হলে অফিসিয়াল থাম্বনেইল, Cloudinary হলে ভিডিওর প্রথম ফ্রেমের jpg।
+ *  অন্য লিংকে null — তখন UI ভিডিওর নিজের প্রথম ফ্রেম (preload="metadata") দেখায়। */
+export const videoPoster = (url: string): string | null => {
+  const yt = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,20})/,
+  );
+  if (yt) return `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`;
+  if (/res\.cloudinary\.com\/[^\s]+\/video\/upload\//.test(url))
+    return url
+      .replace("/video/upload/", "/video/upload/so_0,w_640,h_360,c_fill/")
+      .replace(/\.\w+(\?.*)?$/, ".jpg");
+  return null;
+};

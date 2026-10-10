@@ -15,6 +15,8 @@ export default defineConfig({
     "process.env.DEMO_DATA_DIR": '"preview-browser"',
     // sandboxed iframe-এ service worker নিষিদ্ধ; তাই register কল বন্ধ রাখি
     "import.meta.env.PROD": "false",
+    // R21: অফলাইন প্রিভিউতে গুগল ম্যাপের iframe লোড হয় না (বাইরের রিকোয়েস্ট নিষেধ)
+    "import.meta.env.VITE_OFFLINE_PREVIEW": '"1"',
   },
   resolve: {
     alias: [

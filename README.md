@@ -2,7 +2,7 @@
 
 1996 SSC ব্যাচের পুনর্মিলনী ও পিঠা উৎসবের নিবন্ধন অ্যাপ — পাবলিক সাইট, ম্যানুয়াল পেমেন্ট যাচাই, QR টিকিট, গেট চেক-ইন ও অ্যাডমিন রিপোর্ট।
 
-**🌐 লাইভ:** https://rangpur-ssc96.vercel.app
+**🌐 লাইভ:** https://ssc96-rangpur.vercel.app
 **📘 বাংলা নির্দেশিকা:** [README.bn.md](README.bn.md) · **ডেটাবেস গঠন:** [docs/DATABASE.bn.md](docs/DATABASE.bn.md)
 
 ---

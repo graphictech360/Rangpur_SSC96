@@ -11,6 +11,12 @@ export interface FestivalEvent {
   venueEnglish: string;
   registrationOpen: boolean;
   photoRequired?: boolean;
+  /** R21: ম্যাপে খোঁজার ঠিকানা (যেমন "ভিন্নজগৎ, রংপুর" বা "25.86,89.27") */
+  mapQuery?: string;
+  /** R21: গুগল ম্যাপের শেয়ার/এমবেড লিংক (ঐচ্ছিক, https:// হতে হবে) */
+  mapLink?: string;
+  /** R21: পাবলিক পেজে ম্যাপ দেখানো হবে কি না */
+  mapVisible?: boolean;
 }
 export interface Fees {
   friend: number;
@@ -87,6 +93,21 @@ export interface FormFieldStat {
   answered: number;
   top: { value: string; count: number }[];
 }
+/** R20: আগের সফল আয়োজনের অ্যালবাম */
+export interface MemoryMedia {
+  id?: string;
+  kind: "image" | "video";
+  url: string;
+  order?: number;
+}
+export interface MemoryAlbum {
+  id?: string;
+  title: string;
+  dateLabel: string;
+  media: MemoryMedia[];
+  active: boolean;
+  order: number;
+}
 export interface Site {
   mode: Mode;
   event: FestivalEvent;
@@ -100,6 +121,8 @@ export interface Site {
   formTexts?: Record<string, string>;
   /** হেডার/মেনুর আইটেম */
   nav?: NavItem[];
+  /** আগের আয়োজনের স্মৃতি-অ্যালবাম (সক্রিয়গুলোই আসে) */
+  albums?: MemoryAlbum[];
   demoTicketKey?: string;
 }
 export interface Participant {
@@ -151,7 +174,41 @@ export interface Staff {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "scanner";
+  /** admin = মেইন অ্যাডমিন · moderator = সহ-অ্যাডমিন (সীমিত এক্সেস) · scanner = গেট স্টাফ */
+  role: "admin" | "moderator" | "scanner";
+  /** সহ-অ্যাডমিনের অনুমতির তালিকা (ট্যাবের কী); মেইন অ্যাডমিনে null = সব */
+  permissions?: string[] | null;
+}
+/** খরচের খাতার এক লাইন */
+export interface Expense {
+  id: string;
+  date: string;
+  title: string;
+  amount: number;
+  note: string;
+  enteredBy: string;
+  createdAt: string;
+}
+/** বন্ধুদের ঐচ্ছিক অনুদানের এক লাইন */
+export interface Donation {
+  id: string;
+  date: string;
+  donor: string;
+  amount: number;
+  note: string;
+  enteredBy: string;
+  createdAt: string;
+}
+/** টিম-সদস্য (সহ-অ্যাডমিন/গেট স্টাফ) — মেইন অ্যাডমিন ব্যবস্থাপনা করেন */
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: "moderator" | "scanner";
+  permissions: string[];
+  active: boolean;
+  createdBy?: string;
+  createdAt?: string;
 }
 export interface Device {
   id: string;
@@ -184,6 +241,23 @@ export interface AdminData {
   formTexts: Record<string, string>;
   nav: NavItem[];
   stats: AdminStats;
+  /** R17: খরচের খাতা (অনুমতি থাকলে), ঐচ্ছিক অনুদান ও টিম (শুধু মেইন অ্যাডমিন) */
+  expenses?: Expense[];
+  donations?: Donation[];
+  team?: TeamMember[];
+  finance?: FinanceSummary | null;
+  /** R20: সব অ্যালবাম (লুকানোসহ) — কনটেন্ট ট্যাবের ম্যানেজারের জন্য */
+  albums?: MemoryAlbum[];
+}
+/** অনুমোদিত নিবন্ধন থেকে আয়ের ভাগ-বাটোয়ারা (সার্ভার হিসাব করে) */
+export interface FinanceSummary {
+  friendCount: number;
+  friendTotal: number;
+  spouseCount: number;
+  spouseTotal: number;
+  childCount: number;
+  childTotal: number;
+  registrationTotal: number;
 }
 export interface CheckinResult {
   alreadyCheckedIn: boolean;

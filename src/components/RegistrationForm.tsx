@@ -216,7 +216,13 @@ export default function RegistrationForm({
       onRegistered?.();
       toast("নিবন্ধন জমা হয়েছে। গোপন টিকিটের লিংকটি সংরক্ষণ করো।");
     } catch (e) {
-      setError((e as Error).message);
+      let message = (e as Error).message;
+      // R25: ডুপ্লিকেট-এরর স্পষ্ট করা — চেকটা ধাপ ১-এর মোবাইলে হয়,
+      // পেমেন্টের প্রেরক নম্বরে নয়; তাই কোন নম্বরে আটকেছে সেটাই দেখাই।
+      if (message.includes("এই মোবাইল নম্বরে ইতিমধ্যে নিবন্ধন")) {
+        message = `তোমার মোবাইল নম্বর ${participant.mobile} (ধাপ ১-এ দেওয়া) দিয়ে ইতিমধ্যে একটি নিবন্ধন করা আছে — তাই নতুন করে জমা হচ্ছে না। টিকিট দেখতে উপরের “আমার টিকিট” বোতাম ব্যবহার করো, অথবা অন্য বন্ধুর জন্য নিবন্ধন করলে ধাপ ১-এ তাঁর নিজের মোবাইল নম্বর দাও।`;
+      }
+      setError(message);
     } finally {
       setBusy(false);
     }
@@ -563,14 +569,18 @@ export default function RegistrationForm({
         </div>
       ) : (
         <form onSubmit={submit} noValidate>
-          {/* রোবট-ফাঁদ: মানুষ এই ঘরটি দেখে না; স্বয়ংক্রিয় স্ক্রিপ্ট ভরে ফেলে → জমা বাতিল */}
+          {/* রোবট-ফাঁদ: মানুষ এই ঘরটি দেখে না; স্বয়ংক্রিয় স্ক্রিপ্ট ভরে ফেলে → জমা বাতিল।
+              নাম/লেবেল ইচ্ছে করে অর্থহীন + readOnly — যাতে ব্রাউজারের অটোফিল ভুলেও
+              এটি ভরে ফেলে আসল মানুষকে "রোবট" না বানায় (R24 বাগফিক্স)। */}
           <label className="hp-field" aria-hidden="true" tabIndex={-1}>
-            প্রতিষ্ঠানের নাম
+            এই ঘরটি খালি রাখো
             <input
               type="text"
-              name="company"
+              name="hp_zx96"
               tabIndex={-1}
               autoComplete="off"
+              readOnly
+              onFocus={(e) => e.currentTarget.removeAttribute("readonly")}
               value={honeypot}
               onChange={(e) => setHoneypot(e.target.value)}
             />

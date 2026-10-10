@@ -10,11 +10,15 @@ import {
   participantSchema,
   eventSchema,
   sectionSchema,
+  albumSchema,
   scheduleSchema,
   accountSchema,
   feesSchema,
   formFieldSchema,
   navItemSchema,
+  expenseSchema,
+  donationSchema,
+  teamMemberSchema,
 } from "../server/domain.mjs";
 import { clearPreviewData } from "./shims/fs-promises";
 import { randomBytes } from "./shims/crypto";
@@ -61,16 +65,25 @@ const users = {
  * (যেমন অংশগ্রহণকারীর ট্যাব + অ্যাডমিনের ট্যাব) দুই দিকেই নতুন তথ্য দেখা যায়।
  */
 
-function currentUser() {
-  const email = read(SESSION_KEY);
-  if (!email) return null;
-  const user = users[email as keyof typeof users];
-  return user ? { ...user, email } : null;
+async function currentUser() {
+  const raw = read(SESSION_KEY);
+  if (!raw) return null;
+  // পুরোনো ফরম্যাট: শুধু ইমেইল (ডেমো অ্যাডমিন/স্টাফ)
+  const base = users[raw as keyof typeof users];
+  if (base) return { ...base, email: raw };
+  // R17: টিম-সদস্যের সেশন JSON আকারে ({id}) — প্রতিবার স্টোরে টাটকা অনুমতি পড়া হয়
+  try {
+    const s = JSON.parse(raw) as { id?: string };
+    if (s?.id) return await demo.teamIdentity(s.id);
+  } catch {
+    return null;
+  }
+  return null;
 }
 
-function requireUser() {
-  const user = currentUser();
-  if (!user) throw new AppError("আয়োজক/স্টাফ হিসেবে লগইন করুন।", 401);
+async function requireUser() {
+  const user = await currentUser();
+  if (!user) throw new AppError("আয়োজক/স্টাফ হিসেবে লগইন করুন।", 401);
   return user;
 }
 
@@ -79,7 +92,15 @@ const idSchema = z.string().uuid();
 function validateMutation(action: string, data: unknown) {
   if (action === "event.save") return eventSchema.parse(data);
   if (action === "fees.save") return feesSchema.parse(data);
+  // R17: খরচের খাতা, ঐচ্ছিক অনুদান ও টিম-ব্যবস্থাপনা
+  if (action === "expense.save") return expenseSchema.parse(data);
+  if (action === "donation.save") return donationSchema.parse(data);
+  if (action === "team.save") return teamMemberSchema.parse(data);
+  if (["expense.delete", "donation.delete", "team.delete"].includes(action))
+    return z.object({ id: idSchema }).parse(data);
   if (action === "section.save") return sectionSchema.parse(data);
+  if (action === "album.save") return albumSchema.parse(data);
+  if (action === "album.delete") return z.object({ id: idSchema }).parse(data);
   if (action === "schedule.save") return scheduleSchema.parse(data);
   if (action === "account.save") return accountSchema.parse(data);
   if (action === "formField.save") return formFieldSchema.parse(data);
@@ -170,6 +191,14 @@ async function route(
   await initDemo();
   if (path === "/site") return { status: 200, data: await demo.site() };
 
+  if (path === "/admin/memory-photo" && method === "POST") {
+    // অফলাইন প্রিভিউ: অ্যালবামের ছবিও ডেটা-URI হয়েই থাকে
+    await requireUser();
+    const { photo } = z.object({ photo: z.string().min(64).max(2_600_000) }).parse(body);
+    if (!/^data:image\/(jpeg|jpg|png|webp);base64,/.test(photo))
+      throw new AppError("ছবির ধরন সঠিক নয় — JPG, PNG বা WebP দিন।", 400);
+    return { status: 200, data: { url: photo, demo: true } };
+  }
   if (path === "/photo" && method === "POST") {
     // অফলাইন প্রিভিউ: কিছুই আপলোড হয় না — ছবিটাই ডেটা আকারে থেকে যায়
     const { photo } = z.object({ photo: z.string().min(64).max(2_600_000) }).parse(body);
@@ -202,13 +231,19 @@ async function route(
     const expected = Object.entries(DEMO_ACCOUNTS).find(
       ([, account]) => account.email === email && account.password === password,
     );
-    if (!expected) throw new AppError("ইমেইল বা পাসওয়ার্ড সঠিক নয়।", 401);
-    write(SESSION_KEY, email);
-    const user = currentUser()!;
-    return {
-      status: 200,
-      data: { id: user.id, name: user.name, email, role: user.role },
-    };
+    if (expected) {
+      write(SESSION_KEY, email);
+      const user = (await currentUser())!;
+      return {
+        status: 200,
+        data: { id: user.id, name: user.name, email, role: user.role },
+      };
+    }
+    // R17: মেইন অ্যাডমিনের যোগ করা টিম-সদস্য (সহ-অ্যাডমিন/স্টাফ)
+    const member = await demo.teamLogin(email, password);
+    if (!member) throw new AppError("ইমেইল বা পাসওয়ার্ড সঠিক নয়।", 401);
+    write(SESSION_KEY, JSON.stringify({ id: member.id }));
+    return { status: 200, data: member };
   }
 
   if (path === "/logout" && method === "POST") {
@@ -217,11 +252,17 @@ async function route(
   }
 
   if (path === "/me") {
-    const user = currentUser();
+    const user = await currentUser();
     return {
       status: 200,
       data: user
-        ? { id: user.id, name: user.name, email: user.email, role: user.role }
+        ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            permissions: (user as { permissions?: string[] }).permissions || null,
+          }
         : null,
     };
   }
@@ -233,10 +274,10 @@ async function route(
     };
 
   if (path === "/admin")
-    return { status: 200, data: await demo.overview(requireUser()) };
+    return { status: 200, data: await demo.overview(await requireUser()) };
 
   if (path === "/admin/mutate" && method === "POST") {
-    const user = requireUser();
+    const user = await requireUser();
     const action = z.string().max(60).parse(body.action);
     const payload = validateMutation(action, body.payload);
     return { status: 200, data: await demo.mutate(user, action, payload) };
@@ -245,11 +286,11 @@ async function route(
   if (path === "/staff/device" && method === "GET")
     return {
       status: 200,
-      data: await demo.deviceState(requireUser(), read(DEVICE_KEY)),
+      data: await demo.deviceState(await requireUser(), read(DEVICE_KEY)),
     };
 
   if (path === "/staff/device" && method === "POST") {
-    const user = requireUser();
+    const user = await requireUser();
     const label = z.string().trim().min(2).max(100).parse(body.label);
     const token = read(DEVICE_KEY) || randomBytes(32).toString("hex");
     write(DEVICE_KEY, token);
@@ -260,7 +301,7 @@ async function route(
   }
 
   if (path === "/checkin" && method === "POST") {
-    const user = requireUser();
+    const user = await requireUser();
     const input = z.string().trim().min(5).max(300).parse(body.input);
     return {
       status: 200,

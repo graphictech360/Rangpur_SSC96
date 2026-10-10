@@ -73,6 +73,17 @@ export const eventSchema = z.object({
   city: text(100),
   venueEnglish: text(200),
   registrationOpen: z.boolean(),
+  // R21: ভেন্যুর লাইভ লোকেশন ম্যাপ — অ্যাডমিন প্যানেল থেকে বদলানো যায়
+  mapQuery: z.string().trim().max(200).default(""),
+  mapLink: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === "" || /^https:\/\//i.test(v), {
+      message: "ম্যাপ লিংক https:// দিয়ে শুরু হতে হবে।",
+    })
+    .default(""),
+  mapVisible: z.coerce.boolean().default(true),
 });
 /** নিবন্ধন ফর্মের ঘর — অ্যাডমিন প্যানেল থেকে যোগ/বদল করা যায় */
 export const formFieldSchema = z.object({
@@ -123,6 +134,30 @@ export const navItemSchema = z.object({
   order: z.coerce.number().int().min(0).max(999).default(50),
   visible: z.coerce.boolean().default(true),
 });
+/** R20: আগের সফল আয়োজনের অ্যালবাম — ছবি (আপলোড/লিংক) ও ভিডিও লিংক */
+export const albumMediaSchema = z.object({
+  id: z.string().uuid().optional(),
+  kind: z.enum(["image", "video"]),
+  url: z
+    .string()
+    .min(5)
+    .max(2_600_000) // ডেমো/প্রিভিউতে ছবি data-URI হিসেবেই থাকে
+    .refine(
+      (x) =>
+        x.startsWith("/assets/") ||
+        /^https:\/\//.test(x) ||
+        x.startsWith("data:image/"),
+      "ছবি/ভিডিওর জন্য HTTPS লিংক বা আপলোড করা ছবি দিন।",
+    ),
+});
+export const albumSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: text(160), // লোকেশন/আয়োজনের নাম
+  dateLabel: z.string().trim().max(80).default(""),
+  media: z.array(albumMediaSchema).max(40).default([]),
+  active: z.boolean().default(true),
+  order: z.coerce.number().int().min(0).max(999),
+});
 export const sectionSchema = z.object({
   id: z.string().uuid().optional(),
   key: z
@@ -169,6 +204,106 @@ export const feesSchema = z.object({
   friend: z.coerce.number().int().min(1).max(100000),
   spouse: z.coerce.number().int().min(0).max(100000),
   child: z.coerce.number().int().min(0).max(100000),
+});
+// ── টিম ও অনুমতি (R17): মেইন অ্যাডমিন সহ-অ্যাডমিন যোগ/বাদ ও এক্সেস ঠিক করেন ──
+// প্রতিটি অনুমতির কী = অ্যাডমিন প্যানেলের একটি ট্যাব
+export const PERMISSION_KEYS = [
+  "overview",
+  "reports",
+  "participants",
+  "payments",
+  "event",
+  "content",
+  "schedule",
+  "accounts",
+  "form",
+  "header",
+  "devices",
+  "expenses",
+  "donations",
+];
+// কোন অ্যাকশন করতে কোন অনুমতি লাগে (মেইন অ্যাডমিনের সব অনুমতি আছে)
+export const ACTION_PERMISSIONS = {
+  "event.save": ["event"],
+  "fees.save": ["event"],
+  "section.save": ["content"],
+  "album.save": ["content"],
+  "album.delete": ["content"],
+  "section.delete": ["content"],
+  "schedule.save": ["schedule"],
+  "schedule.delete": ["schedule"],
+  "account.save": ["accounts"],
+  "account.delete": ["accounts"],
+  "formField.save": ["form"],
+  "formField.delete": ["form"],
+  "formField.move": ["form"],
+  "formField.reorder": ["form"],
+  "formText.save": ["form"],
+  "navItem.save": ["header"],
+  "navItem.delete": ["header"],
+  "navItem.reorder": ["header"],
+  "participant.save": ["participants", "payments"],
+  "payment.save": ["payments"],
+  "registration.approve": ["payments"],
+  "registration.reject": ["payments"],
+  "registration.remove": ["participants", "payments"],
+  "registration.reissue": ["participants", "payments"],
+  "device.update": ["devices"],
+  "expense.save": ["expenses"],
+  "expense.delete": ["expenses"],
+  "donation.save": ["donations"],
+  "donation.delete": ["donations"],
+  // টিম বদলাতে পারেন কেবল মেইন অ্যাডমিন — কোনো অনুমতি দিয়েও এটি খোলা যায় না
+  "team.save": null,
+  "team.delete": null,
+};
+/** ব্যবহারকারীর এই কাজের অনুমতি আছে কি? admin=সব; moderator=তালিকা অনুযায়ী */
+export function canDo(user, action) {
+  if (user?.role === "admin") return true;
+  if (user?.role !== "moderator") return false;
+  const needed = ACTION_PERMISSIONS[action];
+  if (needed === null) return false; // শুধু মেইন অ্যাডমিন
+  if (!needed) return false;
+  const held = Array.isArray(user.permissions) ? user.permissions : [];
+  return needed.some((p) => held.includes(p));
+}
+const dateText = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "তারিখ দিন (YYYY-MM-DD)।");
+const amountNumber = z.coerce
+  .number()
+  .min(1, "টাকার পরিমাণ শূন্যের বেশি দিন।")
+  .max(10000000, "টাকার পরিমাণ খুব বড়।");
+// খরচের খাতার এক লাইন — কে লিখেছে (enteredBy) সার্ভার নিজেই বসায়
+export const expenseSchema = z.object({
+  id: z.string().uuid().optional(),
+  date: dateText,
+  title: text(200),
+  amount: amountNumber,
+  note: z.string().trim().max(400).default(""),
+});
+// বন্ধুদের ঐচ্ছিক অনুদানের এক লাইন
+export const donationSchema = z.object({
+  id: z.string().uuid().optional(),
+  date: dateText,
+  donor: text(120),
+  amount: amountNumber,
+  note: z.string().trim().max(400).default(""),
+});
+// সহ-অ্যাডমিন/গেট স্টাফ অ্যাকাউন্ট (মেইন অ্যাডমিন তৈরি/সম্পাদনা করেন)
+export const teamMemberSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: text(120),
+  email: z.email().max(200).transform((x) => x.trim().toLowerCase()),
+  role: z.enum(["moderator", "scanner"]),
+  // নতুন অ্যাকাউন্টে পাসওয়ার্ড লাগবে; সম্পাদনায় খালি রাখলে আগেরটিই থাকে
+  password: z.string().min(8, "পাসওয়ার্ড অন্তত ৮ অক্ষরের দিন।").max(200).optional().or(z.literal("")),
+  permissions: z
+    .array(z.enum(PERMISSION_KEYS))
+    .max(PERMISSION_KEYS.length)
+    .default([]),
+  active: z.boolean().default(true),
 });
 export function safeRegistration(r, { ticket = false } = {}) {
   const { trackingHash, qrSecret, ...publicData } = r;

@@ -1,11 +1,21 @@
 import { useState, type FormEvent } from "react";
-import { Save, Loader2, AlertTriangle, Camera } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  AlertTriangle,
+  Camera,
+  ChevronDown,
+  Trash2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import type {
   AdminData,
   FestivalEvent,
   Fees,
   PaymentAccount,
   Registration,
+  Section,
 } from "../types";
 import { money, post, shrinkPhoto } from "../lib";
 export type EditorKind =
@@ -29,6 +39,7 @@ function TextField({
   type = "text",
   required = true,
   disabled = false,
+  placeholder = "",
 }: {
   label: string;
   value: string | number;
@@ -36,6 +47,7 @@ function TextField({
   type?: string;
   required?: boolean;
   disabled?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="field">
@@ -46,6 +58,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         required={required}
         disabled={disabled}
+        placeholder={placeholder || undefined}
       />
     </label>
   );
@@ -561,6 +574,28 @@ export function EventSettings({
             onChange={(value) => set(key, value)}
           />
         ))}
+        <TextField
+          label="ম্যাপে খোঁজার ঠিকানা (লোকেশন ম্যাপ)"
+          value={event.mapQuery || ""}
+          onChange={(value) => set("mapQuery", value)}
+          required={false}
+          placeholder='যেমন: ভিন্নজগৎ, রংপুর — বা "25.8605, 89.2720"'
+        />
+        <TextField
+          label="গুগল ম্যাপ লিংক (ঐচ্ছিক)"
+          value={event.mapLink || ""}
+          onChange={(value) => set("mapLink", value)}
+          required={false}
+          placeholder="https:// দিয়ে শুরু — শেয়ার/এমবেড লিংক দিলে সেটাই ব্যবহার হবে"
+        />
+        <label className="consent">
+          <input
+            type="checkbox"
+            checked={event.mapVisible !== false}
+            onChange={(e) => set("mapVisible", e.target.checked)}
+          />
+          <span>পাবলিক পেজে লোকেশন ম্যাপ দেখাও</span>
+        </label>
         <label className="consent">
           <input
             type="checkbox"
@@ -640,3 +675,199 @@ export const participantEditor = (r: Registration): EditorState => ({
     locked: r.status === "approved",
   },
 });
+
+/* ── R24: পেজের লেখা ও ছবি — সেকশন-অ্যাকর্ডিয়ন ─────────────────────
+   হেডার (হিরো) থেকে ফুটার পর্যন্ত প্রতিটি সেকশন একটি ড্রপডাউন;
+   খুললেই সেই সেকশনের সব লেখা/ছবি/ক্রম/দৃশ্যমানতা একসাথে সম্পাদনার ঘর। */
+const SECTION_LABELS: Record<string, { name: string; hint?: string }> = {
+  hero: {
+    name: "হেডার ব্যানার (হিরো)",
+    hint: "ছবির ঘরে একাধিক লিংক দিলে (প্রতি লাইনে একটি) ব্যানারে ঘুরে ঘুরে দেখা যায়।",
+  },
+  marquee: {
+    name: "চলমান কমলা ফিতা (স্ক্রলিং বার)",
+    hint: "বিস্তারিত লেখায় প্রতিটি কথা | চিহ্ন দিয়ে আলাদা করো — যেমন: পিঠা উৎসব|পুরোনো বন্ধু|নতুন স্মৃতি|FRIENDS FOREVER। ইংরেজি বড় হাতের লেখা নিজে থেকেই আউটলাইন-স্টাইলে দেখায়।",
+  },
+  story: { name: "আমাদের গল্প" },
+  past_events: {
+    name: "আগের আয়োজনের স্মৃতি (শিরোনাম ও বর্ণনা)",
+    hint: "অ্যালবামের ছবি/ভিডিও নিচের “আগের আয়োজনের অ্যালবাম” অংশে আলাদাভাবে সাজানো যায়।",
+  },
+  festival: { name: "ফি ও পরিবারের অংশ" },
+  registration: { name: "নিবন্ধন অংশের লেখা" },
+  schedule: { name: "সময়সূচির ভূমিকা-লেখা" },
+  faq: { name: "প্রশ্নোত্তর (ভূমিকা)" },
+  footer: { name: "ফুটার" },
+  branding: {
+    name: "লোগো ও ব্র্যান্ডিং",
+    hint: "লোগোর ছবি বদলাতে উপরের লোগো-আপলোড অংশ ব্যবহার করো; এখানে নাম/ট্যাগলাইন।",
+  },
+};
+const sectionLabel = (key: string) =>
+  SECTION_LABELS[key]?.name ||
+  (key.startsWith("faq_") ? `প্রশ্নোত্তর — ${key.replace("faq_", "")}` : key);
+
+function SectionAccordion({
+  section,
+  onSave,
+  onAskDelete,
+}: {
+  section: Section;
+  onSave: SaveMutation;
+  onAskDelete: (s: Section) => void;
+}) {
+  const [form, setForm] = useState({ ...section });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const set = (key: keyof Section, value: unknown) => {
+    setSaved(false);
+    setForm((p) => ({ ...p, [key]: value }));
+  };
+  const dirty = JSON.stringify(form) !== JSON.stringify(section);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await onSave("section.save", { ...form, order: Number(form.order) });
+      setSaved(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const info = SECTION_LABELS[section.key];
+  return (
+    <details className="section-accordion">
+      <summary>
+        <span className="accordion-caret">
+          <ChevronDown size={17} />
+        </span>
+        <span className="accordion-title">
+          <b>{sectionLabel(section.key)}</b>
+          <small>{section.title.replace(/\n/g, " ") || section.key}</small>
+        </span>
+        <span className="accordion-meta">
+          <code>{section.key}</code>
+          <i className={section.visible ? "visible-badge" : "hidden-badge"}>
+            {section.visible ? (
+              <>
+                <Eye size={12} /> দৃশ্যমান
+              </>
+            ) : (
+              <>
+                <EyeOff size={12} /> লুকানো
+              </>
+            )}
+          </i>
+        </span>
+      </summary>
+      <form className="accordion-body" onSubmit={submit}>
+        {info?.hint && <p className="accordion-hint">{info.hint}</p>}
+        <label className="field">
+          শিরোনাম
+          <textarea
+            rows={2}
+            value={form.title}
+            onChange={(e) => set("title", e.target.value)}
+            required
+          />
+        </label>
+        <label className="field">
+          ছোট শিরোনাম (ঐচ্ছিক)
+          <input
+            type="text"
+            value={form.subtitle || ""}
+            onChange={(e) => set("subtitle", e.target.value)}
+          />
+        </label>
+        <label className="field">
+          বিস্তারিত লেখা
+          <textarea
+            rows={4}
+            value={form.body || ""}
+            onChange={(e) => set("body", e.target.value)}
+          />
+        </label>
+        <label className="field">
+          ছবির লিংক (ঐচ্ছিক — প্রতি লাইনে একটি)
+          <textarea
+            rows={2}
+            value={form.imageUrl || ""}
+            onChange={(e) => set("imageUrl", e.target.value)}
+          />
+        </label>
+        <div className="accordion-row">
+          <label className="field accordion-order">
+            সাজানোর ক্রম
+            <input
+              type="number"
+              value={form.order}
+              onChange={(e) => set("order", Number(e.target.value))}
+            />
+          </label>
+          <label className="consent">
+            <input
+              type="checkbox"
+              checked={form.visible}
+              onChange={(e) => set("visible", e.target.checked)}
+            />
+            <span>মূল পেজে দেখাবে</span>
+          </label>
+        </div>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="accordion-actions">
+          <button
+            className="button button-primary"
+            disabled={busy || (!dirty && !error)}
+          >
+            {busy ? (
+              <Loader2 size={16} className="spin" />
+            ) : (
+              <Save size={16} />
+            )}
+            {saved && !dirty ? "সেভ হয়েছে ✓" : "সেভ করো"}
+          </button>
+          <button
+            type="button"
+            className="icon-button danger-button"
+            aria-label={`${section.key} সেকশন বাদ দিন`}
+            onClick={() => onAskDelete(section)}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </form>
+    </details>
+  );
+}
+
+export function SectionAccordions({
+  sections,
+  onSave,
+  onAskDelete,
+}: {
+  sections: Section[];
+  onSave: SaveMutation;
+  onAskDelete: (s: Section) => void;
+}) {
+  const sorted = sections.slice().sort((a, b) => a.order - b.order);
+  return (
+    <div className="section-accordions">
+      {sorted.map((s) => (
+        <SectionAccordion
+          key={s.id + s.title + s.body + String(s.visible) + s.order}
+          section={s}
+          onSave={onSave}
+          onAskDelete={onAskDelete}
+        />
+      ))}
+    </div>
+  );
+}

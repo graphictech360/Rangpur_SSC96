@@ -2145,7 +2145,7 @@ FROM event_events e CROSS JOIN jsonb_to_recordset($seed$[
     "title": "RANGPUR SSC 96",
     "subtitle": "বন্ধুত্বের উৎসব",
     "body": "",
-    "image_url": "/assets/ssc96-logo.webp",
+    "image_url": "/assets/ssc96-logo-v2.webp",
     "sort_order": 5,
     "is_visible": true
   },

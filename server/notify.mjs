@@ -44,7 +44,7 @@ export const notifyConfig = () => {
 };
 
 const siteUrl = () =>
-  (process.env.APP_ORIGIN || process.env.SITE_URL || "https://rangpur-ssc96.vercel.app")
+  (process.env.APP_ORIGIN || process.env.SITE_URL || "https://ssc96-rangpur.vercel.app")
     .trim()
     .replace(/\/$/, "");
 

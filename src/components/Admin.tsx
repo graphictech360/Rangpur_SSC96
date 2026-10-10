@@ -39,6 +39,8 @@ import {
   Type,
   Unlock,
   Lock,
+  Wallet,
+  UserCog,
 } from "lucide-react";
 import type {
   AdminData,
@@ -65,10 +67,15 @@ import {
   EntityEditor,
   EventSettings,
   participantEditor,
+  SectionAccordions,
   type EditorState,
 } from "./Editors";
 import RegistrationForm from "./RegistrationForm";
+import NotificationBell from "./NotificationBell";
 import Reports from "./Reports";
+import AlbumManager from "./Albums";
+import ExpenseSheet from "./Finance";
+import TeamManager from "./Team";
 // নিরাপত্তা-হিসাবের ধরন (সার্ভারের /api/admin/security উত্তর)
 interface SecurityInfo {
   counters: {
@@ -133,6 +140,9 @@ const tabs = [
   ["form", "নিবন্ধন ফর্ম", ListChecks],
   ["header", "হেডার ও মেনু", PanelTop],
   ["devices", "স্টাফ ডিভাইস", Smartphone],
+  // R17: খরচের খাতা (অনুমতি পেলে সহ-অ্যাডমিনও) ও টিম (শুধু মেইন অ্যাডমিন)
+  ["expenses", "খরচের খাতা", Wallet],
+  ["team", "টিম ও অনুমতি", UserCog],
 ] as const;
 export default function Admin({
   site,
@@ -198,6 +208,22 @@ export default function Admin({
       .catch(() => setSecurity(null));
   }, []);
   const [security, setSecurity] = useState<SecurityInfo | null>(null);
+  // R17: কে কোন ট্যাব দেখবেন — মেইন অ্যাডমিন সব; সহ-অ্যাডমিন অনুমতি অনুযায়ী
+  const allowedTab = (key: string) => {
+    if (staff.role === "admin") return true;
+    if (key === "team") return false; // টিম কেবল মেইন অ্যাডমিনের
+    const held = staff.permissions || [];
+    // খরচের খাতা ট্যাব: "expenses" বা "donations" — যেকোনোটি থাকলেই দেখা যায়
+    if (key === "expenses")
+      return held.includes("expenses") || held.includes("donations");
+    return held.includes(key);
+  };
+  const visibleTabs = tabs.filter(([key]) => allowedTab(key));
+  // সহ-অ্যাডমিনের প্রথম অনুমোদিত ট্যাবে পাঠানো (overview বন্ধ থাকলে)
+  useEffect(() => {
+    if (!allowedTab(tab) && visibleTabs.length > 0) setTab(visibleTabs[0][0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staff.role, staff.permissions?.join(",")]);
   // টেনে সাজানো: ধরলাম → টানলাম → ছাড়লাম
   const [dragId, setDragId] = useState<string>("");
   const [overId, setOverId] = useState<string>("");
@@ -343,7 +369,7 @@ export default function Admin({
       toast((e as Error).message, true);
     }
   };
-  if (staff.role !== "admin")
+  if (staff.role === "scanner")
     return (
       <div className="access-denied">
         <ShieldCheck size={40} />
@@ -354,6 +380,18 @@ export default function Admin({
           onClick={() => navigate("/check-in")}
         >
           গেট চেক-ইন খুলুন
+        </button>
+      </div>
+    );
+  // সহ-অ্যাডমিন, কিন্তু কোনো অনুমতিই দেওয়া হয়নি
+  if (staff.role === "moderator" && visibleTabs.length === 0)
+    return (
+      <div className="access-denied">
+        <ShieldCheck size={40} />
+        <h1>এখনো কোনো এক্সেস দেওয়া হয়নি</h1>
+        <p>মেইন অ্যাডমিনকে বলো তোমার অ্যাকাউন্টে এক্সেস যোগ করে দিতে।</p>
+        <button className="button button-primary" onClick={() => navigate("/")}>
+          উৎসবের পেজে ফিরে যাও
         </button>
       </div>
     );
@@ -410,7 +448,7 @@ export default function Admin({
         </a>
         <span className="sidebar-label">FESTIVAL MANAGEMENT</span>
         <nav aria-label="অ্যাডমিন বিভাগ">
-          {tabs.map(([key, label, Icon]) => (
+          {visibleTabs.map(([key, label, Icon]) => (
             <button
               className={tab === key ? "active" : ""}
               key={key}
@@ -438,7 +476,9 @@ export default function Admin({
             <span>{staff.name.charAt(0)}</span>
             <div>
               <b>{staff.name}</b>
-              <small>Administrator</small>
+              <small>
+                {staff.role === "admin" ? "মেইন অ্যাডমিন" : "সহ-অ্যাডমিন"}
+              </small>
             </div>
             <button aria-label="লগআউট" onClick={onLogout}>
               <LogOut size={17} />
@@ -503,6 +543,11 @@ export default function Admin({
                   ? "নতুন নিবন্ধনে ইমেইল"
                   : "ইমেইল খবর বন্ধ"}
             </button>
+            {/* R26: নতুন নিবন্ধনের বেল — আনরিড সংখ্যা + পুশ নোটিফিকেশন */}
+            <NotificationBell
+              registrations={data?.registrations || []}
+              onToast={toast}
+            />
             <button
               className="icon-button"
               aria-label="ডেটা রিফ্রেশ"
@@ -564,6 +609,7 @@ export default function Admin({
                   <Reports
                     stats={data.stats}
                     registrations={data.registrations}
+                    event={data.event}
                   />
                 )}
                 {tab === "overview" && (
@@ -919,64 +965,31 @@ export default function Admin({
                         সেকশন যোগ করুন
                       </button>
                     </div>
-                    <div className="content-editor-grid">
-                      {data.sections
-                        .sort((a, b) => a.order - b.order)
-                        .map((s) => (
-                          <article
-                            className="admin-panel-card content-editor-card"
-                            key={s.id}
-                          >
-                            <div className="content-card-label">
-                              <span>{s.key.toUpperCase()}</span>
-                              <b
-                                className={
-                                  s.visible ? "visible-badge" : "hidden-badge"
-                                }
-                              >
-                                {s.visible ? "দৃশ্যমান" : "লুকানো"}
-                              </b>
-                            </div>
-                            <h3>{s.title}</h3>
-                            <p>{s.body}</p>
-                            {s.imageUrl && (
-                              <span className="image-path">
-                                <FileText size={13} />
-                                {s.imageUrl}
-                              </span>
-                            )}
-                            <div className="content-card-actions">
-                              <button
-                                className="button button-outline"
-                                onClick={() =>
-                                  setEditor({
-                                    kind: "section",
-                                    title: "সেকশন সংশোধন",
-                                    data: s,
-                                  })
-                                }
-                              >
-                                <Pencil size={15} />
-                                সম্পাদনা
-                              </button>
-                              <button
-                                className="icon-button danger-button"
-                                aria-label={`${s.key} সেকশন বাদ দিন`}
-                                onClick={() =>
-                                  requestRemove(
-                                    "section.delete",
-                                    s.id,
-                                    "সেকশনটি বাদ দেবেন?",
-                                    "এই সেকশনটি মূল পেজ থেকে সরিয়ে দেওয়া হবে। চাইলে পরে একই কী দিয়ে আবার যোগ করতে পারবেন।",
-                                  )
-                                }
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </article>
-                        ))}
-                    </div>
+                    {/* R24: প্রতিটি সেকশন ড্রপডাউন — খুললেই সব লেখা/ছবি একসাথে সম্পাদনা */}
+                    <SectionAccordions
+                      sections={data.sections}
+                      onSave={save}
+                      onAskDelete={(s) =>
+                        requestRemove(
+                          "section.delete",
+                          s.id,
+                          "সেকশনটি বাদ দেবেন?",
+                          "এই সেকশনটি মূল পেজ থেকে সরিয়ে দেওয়া হবে। চাইলে পরে একই কী দিয়ে আবার যোগ করতে পারবেন।",
+                        )
+                      }
+                    />
+                    <AlbumManager
+                      albums={data.albums || []}
+                      onSave={act}
+                      onAskDelete={(id, title) =>
+                        requestRemove(
+                          "album.delete",
+                          id,
+                          "অ্যালবাম মুছবেন?",
+                          `“${title}”-এর সব ছবি/ভিডিও স্মৃতির অংশ থেকে চলে যাবে।`,
+                        )
+                      }
+                    />
                   </>
                 )}
                 {tab === "schedule" && (
@@ -1768,6 +1781,43 @@ export default function Admin({
                       )}
                     </div>
                   </>
+                )}
+                {/* ── R17: খরচের খাতা — শুধু অ্যাডমিন/অনুমতিপ্রাপ্ত সহ-অ্যাডমিন ── */}
+                {tab === "expenses" && data && (
+                  <ExpenseSheet
+                    data={data}
+                    staff={staff}
+                    onSave={save}
+                    onDelete={(action, id, title) =>
+                      setConfirm({
+                        action,
+                        id,
+                        title:
+                          action === "team.delete"
+                            ? "সদস্য বাদ দেবেন?"
+                            : action === "donation.delete"
+                              ? "অনুদানের লাইনটি মুছবেন?"
+                              : "খরচের লাইনটি মুছবেন?",
+                        body: `“${title}” মুছে ফেলা হবে — এটি আর ফেরানো যাবে না।`,
+                      })
+                    }
+                  />
+                )}
+                {/* ── R17: টিম ও অনুমতি — কেবল মেইন অ্যাডমিন ── */}
+                {tab === "team" && data && staff.role === "admin" && (
+                  <TeamManager
+                    team={data.team || []}
+                    staff={staff}
+                    onSave={save}
+                    onDelete={(action, id, title) =>
+                      setConfirm({
+                        action,
+                        id,
+                        title: "সদস্য বাদ দেবেন?",
+                        body: `“${title}”-এর অ্যাকাউন্ট মুছে যাবে — সে আর লগইন করতে পারবে না।`,
+                      })
+                    }
+                  />
                 )}
               </>
             )

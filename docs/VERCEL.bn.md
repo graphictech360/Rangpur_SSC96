@@ -84,7 +84,7 @@ vercel env add DATA_MODE production        # ইত্যাদি…
 vercel --prod
 ```
 
-সফল হলে Vercel একটি লিংক দেবে, যেমন `https://rangpur-ssc96.vercel.app` — সেটাই আপনার সবার জন্য খোলা ঠিকানা।
+সফল হলে Vercel একটি লিংক দেবে, যেমন `https://ssc96-rangpur.vercel.app` — সেটাই আপনার সবার জন্য খোলা ঠিকানা।
 
 ---
 
@@ -138,10 +138,10 @@ DNS ছড়াতে ৫ মিনিট – ৪৮ ঘণ্টা লাগ�
 | কাজ                            | ফল                                                                     |
 | ------------------------------ | ---------------------------------------------------------------------- |
 | Vercel প্রজেক্ট                | `rangpur-ssc96` (টিম `nirob14`) · ফ্রেমওয়ার্ক Vite + serverless ফাংশন |
-| প্রোডাকশন ডিপ্লয়              | **https://rangpur-ssc96.vercel.app** ✅                                |
+| প্রোডাকশন ডিপ্লয়              | **https://ssc96-rangpur.vercel.app** ✅                                |
 | Deployment Protection          | বন্ধ করা হয়েছে (সবার জন্য খোলা) ✅                                    |
 | ৭টি Env Variable               | বসানো ✅                                                               |
-| Supabase `site_url` + redirect | `https://rangpur-ssc96.vercel.app` (+ `/admin/reset`) ✅               |
+| Supabase `site_url` + redirect | `https://ssc96-rangpur.vercel.app` (+ `/admin/reset`) ✅               |
 | লাইভে নিবন্ধন → অনুমোদন → QR   | পরীক্ষিত, সব পাস ✅                                                    |
 | কুকি-সেশন (serverless-সহনশীল)  | মেমোরি-সেশনের বদলে সই-করা কুকি ✅                                      |
 

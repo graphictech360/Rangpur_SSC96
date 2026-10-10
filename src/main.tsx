@@ -10,7 +10,20 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </ToastProvider>
   </React.StrictMode>,
 );
-if ("serviceWorker" in navigator && import.meta.env.PROD)
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+// ── স্ট্যাটিক শেল ক্যাশ (R15) ──
+// sw.js কখনোই HTTP ক্যাশে রাখা হবে না, আর নতুন ভার্সন চালু হওয়ামাত্র পেজ
+// একবার রিলোড হবে — তাই লোগো/ছবি বদলালে কেউ পুরোনোটা দেখে আটকে থাকবে না।
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  let refreshed = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshed) return;
+    refreshed = true;
+    location.reload();
   });
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((reg) => reg.update().catch(() => {}))
+      .catch(() => {});
+  });
+}
