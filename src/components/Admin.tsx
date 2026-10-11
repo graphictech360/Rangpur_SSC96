@@ -968,6 +968,7 @@ export default function Admin({
                     {/* R24: প্রতিটি সেকশন ড্রপডাউন — খুললেই সব লেখা/ছবি একসাথে সম্পাদনা */}
                     <SectionAccordions
                       sections={data.sections}
+                      event={data.event}
                       onSave={save}
                       onAskDelete={(s) =>
                         requestRemove(

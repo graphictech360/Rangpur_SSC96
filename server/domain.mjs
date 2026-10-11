@@ -169,12 +169,24 @@ export const sectionSchema = z.object({
   title: text(250),
   subtitle: z.string().trim().max(250).default(""),
   body: z.string().trim().max(3000).default(""),
+  // R32: একাধিক লাইনে অনেক ছবি + সরাসরি আপলোড (ডেমোতে data URI) — প্রতিটি লাইন আলাদা যাচাই
   imageUrl: z
     .string()
-    .max(1000)
+    .max(2_600_000)
     .refine(
-      (x) => !x || x.startsWith("/assets/") || /^https:\/\//.test(x),
-      "ছবির জন্য /assets/ অথবা HTTPS লিংক দিন।",
+      (x) =>
+        !x ||
+        x
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .every(
+            (line) =>
+              line.startsWith("/assets/") ||
+              /^https:\/\//.test(line) ||
+              line.startsWith("data:image/"),
+          ),
+      "ছবির জন্য প্রতি লাইনে /assets/ অথবা HTTPS লিংক দিন।",
     )
     .default(""),
   visible: z.boolean(),

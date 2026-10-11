@@ -783,8 +783,8 @@ summary:focus-visible {
   z-index: 5;
   right: -3px;
   bottom: 15px;
-  width: 124px;
-  height: 124px;
+  width: 132px;
+  height: 132px;
   background: #2b5444;
   color: #f6f0d9;
   border-radius: 50%;
@@ -794,22 +794,31 @@ summary:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1px;
+  text-align: center;
   transform: rotate(13deg);
+}
+/* R30: লেখা যেন বৃত্তের ভেতরে এক লাইনে মাপমতো থাকে — ভাঙবে/বেরোবে না */
+.friends-stamp > span,
+.friends-stamp > small {
+  white-space: nowrap;
+  max-width: 94%;
+  line-height: 1.5;
 }
 .friends-stamp > span {
   font-family: "Outfit", sans-serif;
-  font-size: 11.67px;
-  letter-spacing: 1px;
+  font-size: 9px;
+  letter-spacing: 0.5px;
 }
 .friends-stamp > b {
   font-family: "DM Serif Display", serif;
   font-style: italic;
-  font-size: 49px;
-  line-height: 1.05;
+  font-size: 40px;
+  line-height: 1.02;
   font-weight: 400;
 }
 .friends-stamp > small {
-  font-size: 10.67px;
+  font-size: 9.33px;
 }
 .visual-label {
   position: absolute;
@@ -4702,19 +4711,20 @@ summary:focus-visible {
     gap: 8px;
   }
   .friends-stamp {
-    width: 106px;
-    height: 106px;
+    width: 112px;
+    height: 112px;
     bottom: 12px;
     right: -10px;
   }
   .friends-stamp > b {
-    font-size: 44px;
+    font-size: 33px;
   }
   .friends-stamp > span {
-    font-size: 9.67px;
+    font-size: 7.67px;
+    letter-spacing: 0.4px;
   }
   .friends-stamp > small {
-    font-size: 9.67px;
+    font-size: 8px;
   }
   .visual-label {
     left: 25px;
@@ -4960,19 +4970,20 @@ summary:focus-visible {
     font-size: 8px;
   }
   .friends-stamp {
-    width: 91px;
-    height: 91px;
+    width: 96px;
+    height: 96px;
     right: -6px;
     bottom: 17px;
   }
   .friends-stamp > b {
-    font-size: 34px;
+    font-size: 27px;
   }
   .friends-stamp > span {
-    font-size: 8.67px;
+    font-size: 6.67px;
+    letter-spacing: 0.3px;
   }
   .friends-stamp > small {
-    font-size: 8.67px;
+    font-size: 7px;
   }
   .visual-label {
     font-size: 9.67px;
@@ -5446,19 +5457,20 @@ summary:focus-visible {
     font-size: 9px;
   }
   .friends-stamp {
-    width: 100px;
-    height: 100px;
+    width: 104px;
+    height: 104px;
     right: 1px;
     bottom: 23px;
   }
   .friends-stamp > b {
-    font-size: 38px;
+    font-size: 29px;
   }
   .friends-stamp > span {
-    font-size: 9.67px;
+    font-size: 7px;
+    letter-spacing: 0.3px;
   }
   .friends-stamp > small {
-    font-size: 8.67px;
+    font-size: 7.33px;
   }
   .visual-label {
     left: 30px;
@@ -7498,7 +7510,9 @@ table {
     width: min(300px, 86vw);
     overflow-y: auto;
   }
-  .admin-sidebar.open {
+  /* R28 ফিক্স: ক্লাসের নাম admin-sidebar-open (আগে ভুল করে .open লেখা ছিল,
+     তাই মোবাইলে হ্যামবার্গার চাপলেও মেনু খুলত না) */
+  .admin-sidebar.admin-sidebar-open {
     transform: translateX(0);
   }
   .admin-topbar {
@@ -8491,6 +8505,53 @@ table {
   color: #8a6d2f;
   line-height: 1.8;
 }
+/* R32: সেকশনের ছবি সরাসরি আপলোড */
+.section-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: -6px;
+}
+.section-upload-row small {
+  flex: 1 1 220px;
+  font-size: 12.67px;
+  color: #74816f;
+  line-height: 1.7;
+}
+/* R31: হিরো এডিটরের ভেতরেই বড় শিরোনাম/তারিখ/ভেন্যু সম্পাদনার সবুজ অংশ */
+.hero-event-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1.5px solid #bcd3c4;
+  background: #f1f7f0;
+  border-radius: 12px;
+}
+.hero-event-fields > legend {
+  padding: 2px 10px;
+  font-size: 13.33px;
+  font-weight: 700;
+  color: #2b5444;
+  background: #e2eee2;
+  border-radius: 8px;
+}
+.hero-event-fields .accordion-row {
+  align-items: flex-start;
+}
+.hero-event-fields .accordion-row .field {
+  flex: 1 1 180px;
+}
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.67px;
+  color: #74816f;
+  line-height: 1.7;
+  font-weight: 400;
+}
 .accordion-row {
   display: flex;
   align-items: center;
@@ -8649,4 +8710,88 @@ table {
     left: 10px;
     width: auto;
   }
+}
+
+/* ── R27: "অ্যাপ ইনস্টল করো" ভাসমান বোতাম ── */
+.install-chip-wrap {
+  position: fixed;
+  bottom: 18px;
+  left: 16px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.install-chip {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--green, #2c5234);
+  color: #fff;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(31, 41, 24, 0.3);
+  overflow: hidden;
+  animation: installPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes installPop {
+  from { transform: translateY(14px) scale(0.92); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.install-chip-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px 14px 11px 17px;
+  cursor: pointer;
+}
+.install-chip-close {
+  background: rgba(255, 255, 255, 0.14);
+  border: 0;
+  color: inherit;
+  padding: 0 11px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.install-chip-close:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.install-ios-help {
+  background: var(--white, #fff);
+  border: 1px solid var(--line, #e5e0cb);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(31, 41, 24, 0.2);
+  padding: 14px 16px;
+  max-width: 320px;
+  font-size: 13.67px;
+  line-height: 1.8;
+}
+.install-ios-help b {
+  font-size: 14px;
+}
+.install-ios-help ol {
+  margin: 8px 0;
+  padding-right: 4px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.install-ios-help svg {
+  vertical-align: -2px;
+  color: #1273e6;
+}
+.install-ios-help small {
+  color: #8a6d2f;
+  background: #fdf7e6;
+  border-radius: 8px;
+  padding: 6px 9px;
+  display: block;
+  line-height: 1.7;
 }

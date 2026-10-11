@@ -398,6 +398,20 @@ app.post(
     res.json(await uploadPhoto(photo, "memories"));
   }),
 );
+// ── R32: সেকশন/ব্যানারের ছবি সরাসরি আপলোড (content-অনুমতি লাগে) ──
+app.post(
+  "/api/admin/section-photo",
+  express.json({ limit: "3mb" }),
+  wrap(async (req, res) => {
+    const user = await freshDemoUser(await auth(req, res, true));
+    if (!canDo(user, "section.save"))
+      throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
+    const { photo } = z
+      .object({ photo: z.string().min(64).max(2_600_000) })
+      .parse(req.body);
+    res.json(await uploadPhoto(photo, "sections"));
+  }),
+);
 // ── নিরাপত্তার হিসাব (শুধু অ্যাডমিন দেখতে পান) ──
 app.get(
   "/api/admin/security",

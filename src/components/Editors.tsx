@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import {
   Save,
   Loader2,
@@ -17,7 +17,7 @@ import type {
   Registration,
   Section,
 } from "../types";
-import { money, post, shrinkPhoto } from "../lib";
+import { money, post, shrinkBanner, shrinkPhoto } from "../lib";
 export type EditorKind =
   | "section"
   | "schedule"
@@ -564,8 +564,8 @@ export function EventSettings({
               {
                 name: "অনুষ্ঠানের নাম",
                 tagline: "ট্যাগলাইন",
-                dateLabel: "তারিখের লেখা",
-                venue: "ভেন্যু (বাংলা)",
+                dateLabel: "তারিখের লেখা (ব্যানারের নিচে এটাই দেখায়)",
+                venue: "ভেন্যু (বাংলা) — ব্যানারের নিচের লোকেশন",
                 city: "শহর (বাংলা)",
                 venueEnglish: "লোকেশনের ইংরেজি নাম",
               }[key]
@@ -682,7 +682,7 @@ export const participantEditor = (r: Registration): EditorState => ({
 const SECTION_LABELS: Record<string, { name: string; hint?: string }> = {
   hero: {
     name: "হেডার ব্যানার (হিরো)",
-    hint: "ছবির ঘরে একাধিক লিংক দিলে (প্রতি লাইনে একটি) ব্যানারে ঘুরে ঘুরে দেখা যায়।",
+    hint: "ছবির ঘরে একাধিক লিংক দিলে (প্রতি লাইনে একটি) ব্যানারে ঘুরে ঘুরে দেখা যায়। বড় শিরোনাম, তারিখ ও ভেন্যু নিচের সবুজ অংশ থেকেই বদলানো যায় — “অনুষ্ঠান ও ফি” ট্যাবেও একই ঘর আছে।",
   },
   marquee: {
     name: "চলমান কমলা ফিতা (স্ক্রলিং বার)",
@@ -709,28 +709,82 @@ const sectionLabel = (key: string) =>
 
 function SectionAccordion({
   section,
+  event,
   onSave,
   onAskDelete,
 }: {
   section: Section;
+  event?: FestivalEvent;
   onSave: SaveMutation;
   onAskDelete: (s: Section) => void;
 }) {
   const [form, setForm] = useState({ ...section });
+  // R31: হিরো সেকশনের ভেতর থেকেই বড় শিরোনাম/তারিখ/ভেন্যু সম্পাদনা
+  const isHero = section.key === "hero" && !!event;
+  const [eventForm, setEventForm] = useState(() => ({
+    name: event?.name || "",
+    dateLabel: event?.dateLabel || "",
+    venue: event?.venue || "",
+    city: event?.city || "",
+    venueEnglish: event?.venueEnglish || "",
+  }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  // R32: ছবির লিংকের পাশাপাশি সরাসরি ছবি আপলোড
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const set = (key: keyof Section, value: unknown) => {
     setSaved(false);
     setForm((p) => ({ ...p, [key]: value }));
   };
-  const dirty = JSON.stringify(form) !== JSON.stringify(section);
+  const setEv = (key: keyof typeof eventForm, value: string) => {
+    setSaved(false);
+    setEventForm((p) => ({ ...p, [key]: value }));
+  };
+  const uploadImages = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    setError("");
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        const photo = await shrinkBanner(file);
+        const out = await post<{ url: string }>("/admin/section-photo", {
+          photo,
+        });
+        urls.push(out.url);
+      }
+      setSaved(false);
+      setForm((p) => ({
+        ...p,
+        imageUrl: [p.imageUrl?.trim(), ...urls].filter(Boolean).join("\n"),
+      }));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+  const eventDirty =
+    isHero &&
+    !!event &&
+    (eventForm.name !== event.name ||
+      eventForm.dateLabel !== event.dateLabel ||
+      eventForm.venue !== event.venue ||
+      eventForm.city !== event.city ||
+      eventForm.venueEnglish !== event.venueEnglish);
+  const dirty = JSON.stringify(form) !== JSON.stringify(section) || eventDirty;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
       await onSave("section.save", { ...form, order: Number(form.order) });
+      if (eventDirty && event) {
+        await onSave("event.save", { ...event, ...eventForm });
+      }
       setSaved(true);
     } catch (err) {
       setError((err as Error).message);
@@ -766,6 +820,61 @@ function SectionAccordion({
       </summary>
       <form className="accordion-body" onSubmit={submit}>
         {info?.hint && <p className="accordion-hint">{info.hint}</p>}
+        {isHero && (
+          <fieldset className="hero-event-fields">
+            <legend>বড় শিরোনাম, তারিখ ও ভেন্যু (ব্যানার অংশ)</legend>
+            <label className="field">
+              বড় শিরোনাম (হিরোর বড় লেখা)
+              <input
+                type="text"
+                value={eventForm.name}
+                onChange={(e) => setEv("name", e.target.value)}
+                required
+              />
+              <small className="field-hint">
+                “Rangpur SSC 96 Festival” লিখলে বিশেষ ৩-লাইনের স্টাইলিশ ডিজাইনে
+                দেখাবে; অন্য কিছু লিখলে সাধারণ বড় হরফে দেখাবে।
+              </small>
+            </label>
+            <label className="field">
+              তারিখের লেখা (ব্যানারের নিচে এটাই দেখায়)
+              <input
+                type="text"
+                value={eventForm.dateLabel}
+                onChange={(e) => setEv("dateLabel", e.target.value)}
+                required
+              />
+            </label>
+            <div className="accordion-row">
+              <label className="field">
+                ভেন্যু (বাংলা)
+                <input
+                  type="text"
+                  value={eventForm.venue}
+                  onChange={(e) => setEv("venue", e.target.value)}
+                  required
+                />
+              </label>
+              <label className="field">
+                শহর
+                <input
+                  type="text"
+                  value={eventForm.city}
+                  onChange={(e) => setEv("city", e.target.value)}
+                  required
+                />
+              </label>
+            </div>
+            <label className="field">
+              ভেন্যু (ইংরেজি) — লোকেশনের নিচের ছোট লেখা
+              <input
+                type="text"
+                value={eventForm.venueEnglish}
+                onChange={(e) => setEv("venueEnglish", e.target.value)}
+              />
+            </label>
+          </fieldset>
+        )}
         <label className="field">
           শিরোনাম
           <textarea
@@ -799,6 +908,33 @@ function SectionAccordion({
             onChange={(e) => set("imageUrl", e.target.value)}
           />
         </label>
+        <div className="section-upload-row">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            hidden
+            onChange={(e) => uploadImages(e.target.files)}
+          />
+          <button
+            type="button"
+            className="button button-ghost"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 size={16} className="spin" />
+            ) : (
+              <Camera size={16} />
+            )}
+            {uploading ? "ছবি উঠছে…" : "সরাসরি ছবি আপলোড করুন"}
+          </button>
+          <small>
+            এক বা একাধিক ছবি বেছে নিন — লিংক নিজে থেকেই উপরের ঘরে যোগ হবে, এরপর
+            “সেভ করো” চাপুন।
+          </small>
+        </div>
         <div className="accordion-row">
           <label className="field accordion-order">
             সাজানোর ক্রম
@@ -850,10 +986,12 @@ function SectionAccordion({
 
 export function SectionAccordions({
   sections,
+  event,
   onSave,
   onAskDelete,
 }: {
   sections: Section[];
+  event?: FestivalEvent;
   onSave: SaveMutation;
   onAskDelete: (s: Section) => void;
 }) {
@@ -862,8 +1000,22 @@ export function SectionAccordions({
     <div className="section-accordions">
       {sorted.map((s) => (
         <SectionAccordion
-          key={s.id + s.title + s.body + String(s.visible) + s.order}
+          key={
+            s.id +
+            s.title +
+            s.body +
+            String(s.visible) +
+            s.order +
+            (s.key === "hero" && event
+              ? event.name +
+                event.dateLabel +
+                event.venue +
+                event.city +
+                event.venueEnglish
+              : "")
+          }
           section={s}
+          event={event}
           onSave={onSave}
           onAskDelete={onAskDelete}
         />

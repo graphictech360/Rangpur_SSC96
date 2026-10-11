@@ -248,6 +248,24 @@ export async function sendMail({ subject, html, text, to, from }) {
   }
 }
 
+/** R27: ক্ষণস্থায়ী সমস্যায় (নেটওয়ার্ক/429/5xx) নিজে থেকে আবার চেষ্টা —
+    মোট ৩ বার, মাঝে একটু বিরতি। ভুল চাবির মতো স্থায়ী ত্রুটিতে (4xx) নয়। */
+export async function sendMailWithRetry(mail, { attempts = 3, log = console } = {}) {
+  let result = { ok: false, reason: "no-attempt" };
+  for (let i = 1; i <= attempts; i++) {
+    result = await sendMail(mail);
+    if (result.ok) return { ...result, attempt: i };
+    const transient =
+      !result.status || result.status === 429 || result.status >= 500;
+    if (!transient) return { ...result, attempt: i };
+    if (i < attempts) {
+      log.log(`[notify] মেইল গেল না (চেষ্টা ${i}/${attempts}) — আবার চেষ্টা হচ্ছে…`);
+      await new Promise((r) => setTimeout(r, i * 1200));
+    }
+  }
+  return { ...result, attempt: attempts };
+}
+
 /** নতুন নিবন্ধনের খবর পাঠানোর সহজ দরজা (নিজেই মেইল বানায়)। */
 export async function notifyNewRegistration({ registration, registrationId, log = console }) {
   const cfg = notifyConfig();
@@ -256,7 +274,7 @@ export async function notifyNewRegistration({ registration, registrationId, log 
     return { ok: false, reason: "not-configured" };
   }
   const mail = registrationEmail({ registration, registrationId });
-  const result = await sendMail(mail);
+  const result = await sendMailWithRetry(mail, { log });
   if (result.ok)
     log.log(
       `[notify] মেইল পাঠানো হলো → ${result.provider} → ${mail.to}${

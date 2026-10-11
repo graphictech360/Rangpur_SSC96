@@ -26,7 +26,7 @@ export default function BannerCollage({ images, emblem }: Props) {
       alt: `SSC 96 রংপুর ব্যাচের স্মৃতির ছবি ${i + 1}`,
     }));
     if (list.length < 2) list.push({ kind: "emblem" });
-    return list.slice(0, 4);
+    return list.slice(0, 12); // R32: আগের ৪টির সীমা তুলে ১২ করা হলো
   }, [images]);
   const [index, setIndex] = useState(0);
   const reduced =

@@ -26,6 +26,7 @@ import { bn, logoFallback, money, timeLabel } from "../lib";
 import { Eyebrow, Star, useReveal } from "./UI";
 import MemoryWall from "./MemoryWall";
 import RegistrationForm from "./RegistrationForm";
+import InstallPrompt from "./InstallPrompt";
 interface Props {
   site: Site;
   onTicket: (key?: string) => void;
@@ -41,7 +42,7 @@ export function parseImageList(value: string) {
     .flatMap((line) => (line.includes("data:") ? [line] : line.split(",")))
     .map((x) => x.trim())
     .filter(Boolean)
-    .slice(0, 4);
+    .slice(0, 12); // R32: ব্যানারে ১২টি পর্যন্ত ছবি ঘুরে ঘুরে দেখা যায়
 }
 export default function Home({ site, onTicket, navigate }: Props) {
   const [menu, setMenu] = useState(false);
@@ -109,6 +110,8 @@ export default function Home({ site, onTicket, navigate }: Props) {
   };
   return (
     <div className="festival-page">
+      {/* R27: এক চাপে অ্যাপ ইনস্টল (Android/ডেস্কটপ) + iPhone নির্দেশনা */}
+      <InstallPrompt />
       {site.mode === "demo" && (
         <div className="demo-bar">
           <span className="demo-dot" />
