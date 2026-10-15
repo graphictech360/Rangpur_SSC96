@@ -9,7 +9,8 @@
  *  - absent = অনুমোদিত কিন্তু এখনো চেক-ইন করেনি
  */
 
-const man = (r) => 1 + Number(r.spouse || 0) + Number(r.children || 0);
+const man = (r) =>
+  1 + Number(r.spouse || 0) + Number(r.children || 0) + Number(r.guests || 0);
 const approved = (r) => r.status === "approved";
 const paid = (r) => r.payment?.status === "verified";
 const checked = (r) => Boolean(r.checkedInAt);
@@ -38,6 +39,7 @@ export function computeStats(registrations = [], archivedCount = 0, fields = [])
     families: approvedRows.length,
     spouses: sum(live, (r) => Number(r.spouse || 0)),
     children: sum(live, (r) => Number(r.children || 0)),
+    guests: sum(live, (r) => Number(r.guests || 0)),
     people: sum(live, man),
     approvedPeople: sum(approvedRows, man),
     expectedAmount: sum(live, (r) => Number(r.total || 0)),

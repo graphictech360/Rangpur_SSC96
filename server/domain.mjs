@@ -39,6 +39,8 @@ export const registrationSchema = z.object({
   participant: participantSchema,
   spouse: z.coerce.number().int().min(0).max(1),
   children: z.coerce.number().int().min(0).max(20),
+  // R39: অতিথি (মা, ভাই, বোন বা ড্রাইভার) — জনপ্রতি আলাদা ফি
+  guests: z.coerce.number().int().min(0).max(20).default(0),
   // ফর্ম থেকে সরানো হয়েছে; পুরোনো ক্লায়েন্ট পাঠালেও চলবে (না দিলে ফাঁকা থাকে)
   food: z
     .enum(["সাধারণ", "নিরামিষ", "বিশেষ অনুরোধ", ""])
@@ -184,7 +186,8 @@ export const sectionSchema = z.object({
             (line) =>
               line.startsWith("/assets/") ||
               /^https:\/\//.test(line) ||
-              line.startsWith("data:image/"),
+              line.startsWith("data:image/") ||
+              line.startsWith("data:video/"),
           ),
       "ছবির জন্য প্রতি লাইনে /assets/ অথবা HTTPS লিংক দিন।",
     )
@@ -216,6 +219,8 @@ export const feesSchema = z.object({
   friend: z.coerce.number().int().min(1).max(100000),
   spouse: z.coerce.number().int().min(0).max(100000),
   child: z.coerce.number().int().min(0).max(100000),
+  // R39: অতিথির ফি — পুরনো ডেটায় না থাকলেও চলে (ঐচ্ছিক)
+  guest: z.coerce.number().int().min(0).max(100000).optional(),
 });
 // ── টিম ও অনুমতি (R17): মেইন অ্যাডমিন সহ-অ্যাডমিন যোগ/বাদ ও এক্সেস ঠিক করেন ──
 // প্রতিটি অনুমতির কী = অ্যাডমিন প্যানেলের একটি ট্যাব
@@ -333,6 +338,11 @@ export class AppError extends Error {
     this.status = status;
   }
 }
-export function computeTotal(fees, spouse, children) {
-  return fees.friend + fees.spouse * spouse + fees.child * children;
+export function computeTotal(fees, spouse, children, guests = 0) {
+  return (
+    fees.friend +
+    fees.spouse * spouse +
+    fees.child * children +
+    (Number(fees.guest) || 0) * (Number(guests) || 0)
+  );
 }

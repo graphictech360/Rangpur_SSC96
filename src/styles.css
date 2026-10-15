@@ -1153,7 +1153,8 @@ summary:focus-visible {
 }
 .registration-section {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
+  /* R35: minmax(0,…) — ভেতরের লম্বা লেখা/বাটন কলামকে ভিউপোর্টের বাইরে ঠেলতে পারবে না */
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 93px;
   align-items: start;
   padding-block: 100px;
@@ -2598,6 +2599,23 @@ summary:focus-visible {
   font-size: 10.67px;
   color: #9ba78b;
   padding: 7px 0 8px;
+}
+/* R40b: ছোট পর্দায় টিকিটের তথ্য আর QR পাশাপাশি ধরে না —
+   লেখা অক্ষর-ভেঙে লম্বালম্বি হয়ে যেত; এখন QR নিচে নামে,
+   তথ্য পুরো প্রস্থ পায় (ডাউনলোড-করা PNG টিকিটেও একই লেআউট) */
+@media (max-width: 599px) {
+  .receipt-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .receipt-data > span {
+    flex-wrap: wrap;
+  }
+  .receipt-qr {
+    align-self: center;
+    width: min(210px, 100%);
+  }
 }
 .receipt-footer {
   background: #eef3e4;
@@ -4745,7 +4763,7 @@ summary:focus-visible {
   }
   .registration-section {
     gap: 48px;
-    grid-template-columns: 0.85fr 1.1fr;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.1fr);
   }
   .registration-intro .section-title {
     font-size: 34px;
@@ -5079,7 +5097,7 @@ summary:focus-visible {
   }
   .registration-section {
     gap: 35px;
-    grid-template-columns: 0.8fr 1.15fr;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.15fr);
     padding-block: 80px;
   }
   .registration-intro .section-title {
@@ -5626,7 +5644,7 @@ summary:focus-visible {
     margin-top: 2px;
   }
   .registration-section {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 32px;
     padding-block: 68px;
   }
@@ -6575,10 +6593,11 @@ summary:focus-visible {
     font-size: 60px;
   }
   .title-batch {
-    font-size: 89px;
+    font-size: min(89px, 26vw);
   }
   .title-festival {
-    font-size: 94px;
+    /* R35: খুব সরু পর্দায় (≤340px) যেন ডান দিক না কাটে */
+    font-size: min(94px, 27vw);
   }
   .hero-subtitle {
     font-size: 20.67px;
@@ -8100,8 +8119,10 @@ table {
 .memory-section { position: relative; }
 .memory-head { max-width: 640px; margin-bottom: 26px; }
 .memory-stage {
-  display: grid; grid-template-columns: 1.7fr 1fr; gap: 22px; align-items: stretch;
+  /* R35: minmax(0,…) — সরু পর্দায় কলাম ভিউপোর্টের বাইরে যাবে না */
+  display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 22px; align-items: stretch;
 }
+.memory-screen, .memory-videos { min-width: 0; max-width: 100%; }
 .memory-screen {
   position: relative; margin: 0; border-radius: 22px; overflow: hidden;
   aspect-ratio: 4 / 3; background: #203d36;
@@ -8194,7 +8215,7 @@ table {
   align-items: center; justify-content: center; color: #fdf8ec;
 }
 @media (max-width: 900px) {
-  .memory-stage { grid-template-columns: 1fr; }
+  .memory-stage { grid-template-columns: minmax(0, 1fr); }
   .memory-screen { aspect-ratio: 16 / 11; }
 }
 
@@ -8230,6 +8251,82 @@ table {
 .album-media-tools button.danger { color: #ffb4a2; }
 .album-add-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .album-counts { color: #8a8368; font-size: 0.95rem; margin-inline-start: auto; }
+/* R39: টি-শার্ট সাইজের মাপের তালিকা + অতিথির আইকন */
+/* R39b: বাছাই-করা সাইজের বক্সের নিচে ড্রপডাউনের মতো শুধু সেই সাইজের মাপ */
+.size-opt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.size-opt > button {
+  width: 100%;
+}
+.size-options {
+  align-items: flex-start;
+}
+.size-pop {
+  position: relative;
+  margin-top: 8px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: #ffffff;
+  border: 1.5px solid #3e674d;
+  color: #205f24;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(46, 74, 56, 0.14);
+  animation: sizePopIn 0.18s ease-out;
+  z-index: 2;
+}
+.size-pop::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #ffffff;
+  border-left: 1.5px solid #3e674d;
+  border-top: 1.5px solid #3e674d;
+}
+@keyframes sizePopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 640px) {
+  .size-pop {
+    font-size: 0.78rem;
+    padding: 4px 7px;
+  }
+  /* কোণার সাইজে (প্রথম/শেষ) বাবল ভেতরের দিকে — পর্দার বাইরে যাবে না */
+  .size-opt:first-child {
+    align-items: flex-start;
+  }
+  .size-opt:last-child {
+    align-items: flex-end;
+  }
+}
+.family-icon.guest-icon {
+  background: #e9eef5;
+  color: #38506b;
+}
+/* R36: অ্যালবামে না-সেভ-করা বদল আছে — চোখে পড়ার মতো সতর্কতা */
+.album-unsaved {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fdecea; color: #b3261e; border: 1px solid #f3c1bb;
+  border-radius: 999px; padding: 5px 12px; font-size: 0.92rem; font-weight: 600;
+}
 .album-link-row { display: flex; gap: 10px; margin-top: 12px; }
 .album-link-row input { flex: 1; }
 .album-empty {
@@ -8505,6 +8602,185 @@ table {
   color: #8a6d2f;
   line-height: 1.8;
 }
+/* R35: সরু মোবাইলে লম্বা-লেখার বাটন ভাঁজ হবে — ডান দিক আর কাটবে না */
+@media (max-width: 560px) {
+  .venue-map-actions .button,
+  .section-upload-row .button,
+  .accordion-actions .button,
+  .countdown-cta,
+  .registration-form-wrap .button {
+    white-space: normal;
+    padding-inline: 16px;
+    max-width: 100%;
+  }
+}
+/* R33: নিবন্ধনের কাউন্টডাউন + গাইড ভিডিও সেকশন */
+.countdown-section {
+  background: #f6f1e3;
+  border-top: 1px solid #e8e0c9;
+  border-bottom: 1px solid #e8e0c9;
+}
+.countdown-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 34px;
+  align-items: center;
+}
+.countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+}
+.countdown-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #2b5444;
+  color: #f6f0d9;
+}
+.countdown-body {
+  margin: 0;
+  font-size: 15.33px;
+  color: #5d6652;
+  line-height: 1.95;
+}
+.countdown-deadline {
+  margin: 0;
+  font-size: 15.33px;
+  color: #4c5443;
+}
+.countdown-deadline b {
+  color: #b4532a;
+}
+.countdown-clock {
+  display: flex;
+  gap: 11px;
+  flex-wrap: wrap;
+}
+.countdown-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 74px;
+  padding: 12px 10px 9px;
+  background: #2b5444;
+  color: #f6f0d9;
+  border-radius: 14px;
+  box-shadow: 0 7px 16px rgba(43, 84, 68, 0.22);
+}
+.countdown-box b {
+  font-family: "DM Serif Display", serif;
+  font-size: 31px;
+  line-height: 1.05;
+  font-weight: 400;
+}
+.countdown-box small {
+  font-size: 12.67px;
+  opacity: 0.85;
+}
+.countdown-over {
+  margin: 0;
+  padding: 12px 16px;
+  background: #fdeee3;
+  border: 1px dashed #e0a583;
+  border-radius: 12px;
+  color: #9c4a22;
+  font-size: 15.33px;
+  line-height: 1.9;
+}
+.countdown-cta {
+  margin-top: 4px;
+}
+.countdown-video {
+  position: relative;
+}
+.countdown-video-frame,
+.countdown-video-poster,
+.countdown-video-empty {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #22312a;
+  border: 5px solid #fffdf6;
+  box-shadow: 0 16px 34px rgba(60, 56, 38, 0.18);
+}
+.countdown-video-frame iframe,
+.countdown-video-frame video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  object-fit: cover;
+  background: #000;
+}
+.countdown-video-poster {
+  position: relative;
+  display: block;
+  padding: 0;
+  cursor: pointer;
+}
+.countdown-video-poster img,
+.countdown-video-empty img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.countdown-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #fffdf6;
+  background: rgba(24, 38, 31, 0.45);
+  transition: background 0.25s ease;
+}
+.countdown-video-poster:hover .countdown-play {
+  background: rgba(24, 38, 31, 0.6);
+}
+.countdown-play small {
+  font-size: 13.33px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 5px 13px;
+  border-radius: 999px;
+}
+.countdown-video-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  color: #c6cdb9;
+}
+.countdown-video-empty p {
+  margin: 0;
+  font-size: 14.67px;
+  padding: 0 20px;
+  text-align: center;
+  line-height: 1.9;
+}
+@media (max-width: 860px) {
+  .countdown-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .countdown-box {
+    min-width: 64px;
+    padding: 10px 8px 8px;
+  }
+  .countdown-box b {
+    font-size: 26px;
+  }
+}
 /* R32: সেকশনের ছবি সরাসরি আপলোড */
 .section-upload-row {
   display: flex;
@@ -8529,6 +8805,13 @@ table {
   border: 1.5px solid #bcd3c4;
   background: #f1f7f0;
   border-radius: 12px;
+  /* R35: fieldset-এর ডিফল্ট min-width:min-content — সরু পর্দায় ডান দিক কেটে যেত */
+  min-width: 0;
+  max-width: 100%;
+}
+.hero-event-fields input,
+.hero-event-fields textarea {
+  max-width: 100%;
 }
 .hero-event-fields > legend {
   padding: 2px 10px;
@@ -8648,6 +8931,28 @@ table {
   gap: 10px;
   padding: 10px 15px;
   border-bottom: 1px solid #f3efe2;
+}
+/* R34: নোটিফিকেশনের প্রতিটি সারি এখন ক্লিকযোগ্য — সরাসরি পেমেন্ট যাচাই খোলে */
+.notif-list li:has(.notif-item) {
+  padding: 0;
+}
+.notif-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 15px;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.notif-item:hover,
+.notif-item:focus-visible {
+  background: #f3efe0;
 }
 .notif-list li.notif-new {
   background: #fdf7e6;

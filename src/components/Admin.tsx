@@ -123,6 +123,8 @@ const FORM_TEXT_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "fee.label", label: "ফি-র লেবেল", hint: "মোট নিবন্ধন ফি" },
   { key: "family.spouse", label: "জীবনসঙ্গী লেবেল", hint: "জীবনসঙ্গী আসবেন?" },
   { key: "family.children", label: "শিশু লেবেল", hint: "কতজন ছোট্ট অতিথি?" },
+  { key: "family.guests", label: "অতিথি লেবেল", hint: "কতজন অতিথি?" },
+  { key: "family.guests_hint", label: "অতিথির ছোট লেখা", hint: "মা, ভাই, বোন বা ড্রাইভার" },
   { key: "family.total", label: "পরিবারের মোট লেবেল", hint: "মোট পরিবারের সদস্য" },
   { key: "privacy.note", label: "গোপনীয়তার লেখা", hint: "তথ্য শুধু আয়োজন…" },
   { key: "consent.text", label: "সম্মতির লেখা", hint: "প্রদত্ত তথ্য সঠিক…" },
@@ -162,9 +164,21 @@ export default function Admin({
   const [data, setData] = useState<AdminData | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("overview"),
+  // R37: রিলোড দিলেও যে ট্যাবে ছিলেন সেখানেই ফেরা — sessionStorage-এ শুধু
+  // ট্যাবের নামটুকু থাকে; অচেনা/পুরনো মান হলে আগের মতোই "এক নজরে"।
+  // অনুমতিহীন ট্যাব হলে নিচের পাহারা-ইফেক্ট এমনিতেই প্রথম অনুমোদিত ট্যাবে পাঠায়।
+  const initialTab = (() => {
+    try {
+      const saved = sessionStorage.getItem("r96AdminTab");
+      if (saved && tabs.some(([key]) => key === saved)) return saved;
+    } catch {
+      /* স্টোরেজ বন্ধ থাকলে (প্রাইভেট মোড) ডিফল্টেই চলবে */
+    }
+    return "overview";
+  })();
+  const [tab, setTab] = useState(initialTab),
     [search, setSearch] = useState(""),
-    [filter, setFilter] = useState("all"),
+    [filter, setFilter] = useState(initialTab === "payments" ? "pending" : "all"),
     [sidebar, setSidebar] = useState(false);
   const [editor, setEditor] = useState<EditorState | null>(null),
     [inspectedId, setInspectedId] = useState<string | null>(null),
@@ -357,6 +371,11 @@ export default function Admin({
   };
   const changeTab = (value: string) => {
     setTab(value);
+    try {
+      sessionStorage.setItem("r96AdminTab", value);
+    } catch {
+      /* মনে না রাখতে পারলেও ট্যাব বদল ঠিকই হবে */
+    }
     setSidebar(false);
     setSearch("");
     setFilter(value === "payments" ? "pending" : "all");
@@ -547,6 +566,12 @@ export default function Admin({
             <NotificationBell
               registrations={data?.registrations || []}
               onToast={toast}
+              onSync={load}
+              onOpen={(id) => {
+                // R34: নোটিফিকেশন থেকে সরাসরি পেমেন্ট যাচাই — ডায়ালগেই অনুমোদন/বাতিল
+                changeTab("payments");
+                setInspectedId(id);
+              }}
             />
             <button
               className="icon-button"
@@ -618,7 +643,7 @@ export default function Admin({
                       <Stat
                         label="মোট নিবন্ধন"
                         value={bn(active.length)}
-                        detail={`পরিবারসহ ${bn(active.reduce((a, r) => a + 1 + r.spouse + r.children, 0))} জন`}
+                        detail={`পরিবারসহ ${bn(active.reduce((a, r) => a + 1 + r.spouse + r.children + (r.guests || 0), 0))} জন`}
                         icon={<Users />}
                         color="green"
                       />
@@ -639,7 +664,7 @@ export default function Admin({
                       <Stat
                         label="গেটে চেক-ইন"
                         value={bn(checked.length)}
-                        detail={`${bn(checked.reduce((a, r) => a + 1 + r.spouse + r.children, 0))} জন প্রবেশ করেছেন`}
+                        detail={`${bn(checked.reduce((a, r) => a + 1 + r.spouse + r.children + (r.guests || 0), 0))} জন প্রবেশ করেছেন`}
                         icon={<ScanLine />}
                         color="blue"
                       />
@@ -849,9 +874,9 @@ export default function Admin({
                                 </div>
                               </td>
                               <td>
-                                <b>{bn(1 + r.spouse + r.children)} জন</b>
+                                <b>{bn(1 + r.spouse + r.children + (r.guests || 0))} জন</b>
                                 <small>
-                                  সঙ্গী {bn(r.spouse)} · শিশু {bn(r.children)}
+                                  সঙ্গী {bn(r.spouse)} · শিশু {bn(r.children)}{(r.guests || 0) > 0 && <> · অতিথি {bn(r.guests || 0)}</>}
                                 </small>
                               </td>
                               <td>
@@ -1299,7 +1324,10 @@ export default function Admin({
                                       : "ঘর সংশোধন করুন",
                                     data: {
                                       ...f,
-                                      optionsText: (f.options || []).join(", "),
+                                      // R39: টি-শার্টের সাইজ-তালিকা লাইনে-লাইনে, অন্যরা কমায়
+                                      optionsText: (f.options || []).join(
+                                        f.kind === "tshirt" ? "\n" : ", ",
+                                      ),
                                     },
                                   })
                                 }
@@ -2005,8 +2033,8 @@ function RegistrationDetail({
           ["বর্তমান অবস্থান", r.participant.location],
           ["এসএসসি রোল", r.participant.sscRoll],
           ["এসএসসি রেজিস্ট্রেশন", r.participant.sscRegistration || "—"],
-          ["মোট সদস্য", `${bn(1 + r.spouse + r.children)} জন`],
-          ["পরিবার", `সঙ্গী ${bn(r.spouse)} · শিশু ${bn(r.children)}`],
+          ["মোট সদস্য", `${bn(1 + r.spouse + r.children + (r.guests || 0))} জন`],
+          ["পরিবার", `সঙ্গী ${bn(r.spouse)} · শিশু ${bn(r.children)}${(r.guests || 0) > 0 ? ` · অতিথি ${bn(r.guests || 0)}` : ""}`],
           ["টি-শার্ট", r.participant.tshirt],
           ...(r.food ? [["খাবার", r.food]] : []),
           ...Object.entries(r.answers || {})
@@ -2063,6 +2091,8 @@ function RegistrationDetail({
           বন্ধু ৳ {money(r.feeSnapshot.friend)} + সঙ্গী {bn(r.spouse)} × ৳{" "}
           {money(r.feeSnapshot.spouse)} + শিশু {bn(r.children)} × ৳{" "}
           {money(r.feeSnapshot.child)}
+          {(r.guests || 0) > 0 &&
+            ` + অতিথি ${bn(r.guests || 0)} × ৳ ${money(r.feeSnapshot.guest || 0)}`}
         </p>
         {r.payment.reason && (
           <p className="form-error">কারণ: {r.payment.reason}</p>

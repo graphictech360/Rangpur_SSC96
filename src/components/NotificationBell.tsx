@@ -34,9 +34,15 @@ const timeAgo = (iso: string) => {
 export default function NotificationBell({
   registrations,
   onToast,
+  onSync,
+  onOpen,
 }: {
   registrations: Registration[];
   onToast: (msg: string, isError?: boolean) => void;
+  /** R34: নতুন নিবন্ধন টের পেলে অ্যাডমিনের ডেটা নতুন করে আনা হয় — তালিকা আর ফাঁকা থাকে না */
+  onSync?: () => Promise<unknown> | unknown;
+  /** R34: নোটিফিকেশনে ক্লিক করলে সরাসরি সেই নিবন্ধনের যাচাই-ডায়ালগ খোলে */
+  onOpen?: (id: string) => void;
 }) {
   const [state, setState] = useState<NotifState | null>(null);
   const [open, setOpen] = useState(false);
@@ -45,11 +51,15 @@ export default function NotificationBell({
   const [pushBusy, setPushBusy] = useState(false);
   const publicKey = useRef("");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const lastUnread = useRef(0);
 
   const refresh = useCallback(async () => {
     try {
       const s = await api<NotifState>("/notifications");
       setState(s);
+      // R34: আনরিড বেড়েছে মানে নতুন নিবন্ধন এসেছে — তালিকার ডেটাও সাথে সাথে আনি
+      if (s.unread > lastUnread.current) onSync?.();
+      lastUnread.current = s.unread;
       // ইনস্টল করা অ্যাপের আইকনে সংখ্যা (Badging API — যেখানে আছে)
       const nav = navigator as Navigator & {
         setAppBadge?: (n: number) => Promise<void>;
@@ -60,7 +70,7 @@ export default function NotificationBell({
     } catch {
       /* নীরব — পরের পোলে আবার চেষ্টা */
     }
-  }, []);
+  }, [onSync]);
 
   useEffect(() => {
     refresh();
@@ -176,7 +186,10 @@ export default function NotificationBell({
         }
         onClick={() => {
           setOpen(!open);
-          if (!open) refresh();
+          if (!open) {
+            refresh();
+            onSync?.(); // R34: খোলামাত্র তাজা তালিকা
+          }
         }}
       >
         {unread > 0 ? <BellRing size={18} /> : <Bell size={18} />}
@@ -203,23 +216,33 @@ export default function NotificationBell({
                 key={r.id}
                 className={seenAt && r.createdAt > seenAt ? "notif-new" : ""}
               >
-                <span className="notif-name">
-                  {r.participant.name}
-                  <small>
-                    {r.ticketNumber} · {timeAgo(r.createdAt)}
-                  </small>
-                </span>
-                <i
-                  className={
-                    r.status === "approved" ? "visible-badge" : "hidden-badge"
-                  }
+                <button
+                  type="button"
+                  className="notif-item"
+                  title="বিস্তারিত ও পেমেন্ট যাচাই খুলুন"
+                  onClick={() => {
+                    setOpen(false);
+                    onOpen?.(r.id);
+                  }}
                 >
-                  {r.status === "approved"
-                    ? "অনুমোদিত"
-                    : r.status === "pending"
-                      ? "অপেক্ষায়"
-                      : "বাতিল"}
-                </i>
+                  <span className="notif-name">
+                    {r.participant.name}
+                    <small>
+                      {r.ticketNumber} · {timeAgo(r.createdAt)}
+                    </small>
+                  </span>
+                  <i
+                    className={
+                      r.status === "approved" ? "visible-badge" : "hidden-badge"
+                    }
+                  >
+                    {r.status === "approved"
+                      ? "অনুমোদিত"
+                      : r.status === "pending"
+                        ? "অপেক্ষায়"
+                        : "বাতিল"}
+                  </i>
+                </button>
               </li>
             ))}
           </ul>

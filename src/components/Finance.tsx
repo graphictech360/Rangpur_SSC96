@@ -129,10 +129,23 @@ export default function ExpenseSheet({
                   <td>{bn(fin.childCount)} জন</td>
                   <td className="amount">৳ {money(fin.childTotal)}</td>
                 </tr>
+                {(fin.guestCount || 0) > 0 && (
+                  <tr>
+                    <td>অতিথিদের ফি</td>
+                    <td>{bn(fin.guestCount || 0)} জন</td>
+                    <td className="amount">৳ {money(fin.guestTotal || 0)}</td>
+                  </tr>
+                )}
                 <tr className="total-row">
                   <td>মোট নিবন্ধন-আয়</td>
                   <td>
-                    {bn(fin.friendCount + fin.spouseCount + fin.childCount)} জন
+                    {bn(
+                      fin.friendCount +
+                        fin.spouseCount +
+                        fin.childCount +
+                        (fin.guestCount || 0),
+                    )}{" "}
+                    জন
                   </td>
                   <td className="amount">৳ {money(fin.registrationTotal)}</td>
                 </tr>
@@ -636,6 +649,17 @@ async function downloadPdf(data: AdminData) {
       credit: fin?.childTotal || 0,
       debit: 0,
     },
+    ...((fin?.guestCount || 0) > 0
+      ? [
+          {
+            date: "",
+            desc: `নিবন্ধন-আয় — অতিথিদের ফি (${bn(fin?.guestCount || 0)} জন)`,
+            by: "স্বয়ংক্রিয়",
+            credit: fin?.guestTotal || 0,
+            debit: 0,
+          },
+        ]
+      : []),
   ];
   const moves: Entry[] = [
     ...donations.map((d) => ({
@@ -709,6 +733,14 @@ async function downloadPdf(data: AdminData) {
           label: `শিশুদের ফি (${bn(fin?.childCount || 0)} জন)`,
           value: `৳ ${money(fin?.childTotal || 0)}`,
         },
+        ...((fin?.guestCount || 0) > 0
+          ? [
+              {
+                label: `অতিথিদের ফি (${bn(fin?.guestCount || 0)} জন)`,
+                value: `৳ ${money(fin?.guestTotal || 0)}`,
+              },
+            ]
+          : []),
         { label: "মোট নিবন্ধন-আয়", value: `৳ ${money(regIncome)}` },
         {
           label: `বন্ধুদের ঐচ্ছিক অনুদান (${bn(donations.length)}টি)`,

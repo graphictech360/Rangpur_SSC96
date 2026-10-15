@@ -136,7 +136,7 @@ export const demo = {
       );
       if (!account)
         throw new AppError("পেমেন্ট গ্রহণকারীর সঠিক নম্বর বেছে নিন।");
-      const total = computeTotal(state.fees, data.spouse, data.children);
+      const total = computeTotal(state.fees, data.spouse, data.children, data.guests);
       if (data.payment.amount !== total)
         throw new AppError(
           "ফি পরিবর্তিত হয়েছে। পেজ রিফ্রেশ করে সঠিক পরিমাণ যাচাই করুন।",
@@ -151,6 +151,7 @@ export const demo = {
         participant: data.participant, // ছবি (photoUrl) এর ভিতরেই থাকে
         spouse: data.spouse,
         children: data.children,
+        guests: data.guests || 0,
         food: data.food || "",
         notes: data.notes,
         answers: data.answers || {},
@@ -263,6 +264,8 @@ export const demo = {
               spouseTotal: sum((r) => r.spouse * r.feeSnapshot.spouse),
               childCount: sum((r) => r.children),
               childTotal: sum((r) => r.children * r.feeSnapshot.child),
+              guestCount: sum((r) => r.guests || 0),
+              guestTotal: sum((r) => (r.guests || 0) * (r.feeSnapshot.guest || 0)),
               registrationTotal: sum((r) => r.total),
             };
           })()
@@ -307,7 +310,7 @@ export const demo = {
       stats: computeStats(
         registrations.map((r) => ({
           ...r,
-          groupSize: 1 + r.spouse + r.children,
+          groupSize: 1 + r.spouse + r.children + (r.guests || 0),
         })),
         state.registrations.filter((r) => r.archivedAt).length,
         state.formFields || [],
@@ -439,6 +442,11 @@ export const demo = {
             visible: existing.isLocked
               ? existing.visible
               : (payload.visible ?? existing.visible),
+            // R39: মূল ঘরেও options বদলানো যায় (যেমন টি-শার্টের সাইজ-তালিকা);
+            // কী (key) ও ধরন (kind) আগের মতোই সুরক্ষিত
+            options: Array.isArray(payload.options)
+              ? payload.options
+              : existing.options,
           });
           result = existing;
         } else {
@@ -583,7 +591,9 @@ export const demo = {
           throw new AppError("এই মোবাইলে অন্য নিবন্ধন আছে।");
         if (
           r.status === "approved" &&
-          (r.spouse !== payload.spouse || r.children !== payload.children)
+          (r.spouse !== payload.spouse ||
+            r.children !== payload.children ||
+            (r.guests || 0) !== (payload.guests || 0))
         )
           throw new AppError(
             "অনুমোদিত টিকিটের সদস্যসংখ্যা সরাসরি বদলানো যাবে না।",
@@ -594,7 +604,8 @@ export const demo = {
         if (payload.answers) r.answers = payload.answers;
         r.spouse = payload.spouse;
         r.children = payload.children;
-        r.total = computeTotal(r.feeSnapshot, r.spouse, r.children);
+        r.guests = payload.guests || 0;
+        r.total = computeTotal(r.feeSnapshot, r.spouse, r.children, r.guests);
       } else if (action === "payment.save") {
         const r = findReg(payload.id);
         if (r.status === "approved" || r.checkedInAt || r.archivedAt)
@@ -731,9 +742,10 @@ export const demo = {
         name: r.participant.name,
         school: r.participant.school,
         photoUrl: r.participant.photoUrl || "",
-        people: 1 + r.spouse + r.children,
+        people: 1 + r.spouse + r.children + (r.guests || 0),
         spouse: r.spouse,
         children: r.children,
+        guests: r.guests || 0,
         checkedInAt: r.checkedInAt,
       };
     }),

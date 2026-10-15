@@ -22,6 +22,8 @@ export interface Fees {
   friend: number;
   spouse: number;
   child: number;
+  /** R39: অতিথির জনপ্রতি ফি — ডাটাবেস আপডেটের আগে থাকবে না (ঐচ্ছিক) */
+  guest?: number;
 }
 export interface Section {
   id: string;
@@ -58,7 +60,11 @@ export type FieldKind =
   | "number"
   | "tel"
   | "date"
-  | "checkbox";
+  | "checkbox"
+  /* ফর্মের মূল (base) ঘরের বিশেষ ধরন — অ্যাডমিন নতুন করে বানাতে পারেন না */
+  | "photo"
+  | "family"
+  | "tshirt";
 export interface FormField {
   id: string;
   key: string;
@@ -155,6 +161,8 @@ export interface Registration {
   participant: Participant;
   spouse: number;
   children: number;
+  /** R39: অতিথি (মা, ভাই, বোন বা ড্রাইভার) */
+  guests?: number;
   food: string;
   notes: string;
   /** অ্যাডমিন-যোগ করা ঘরগুলোর উত্তর — { "blood_group": "B+" } আকারে */
@@ -257,6 +265,8 @@ export interface FinanceSummary {
   spouseTotal: number;
   childCount: number;
   childTotal: number;
+  guestCount?: number;
+  guestTotal?: number;
   registrationTotal: number;
 }
 export interface CheckinResult {
@@ -269,6 +279,7 @@ export interface CheckinResult {
   people: number;
   spouse: number;
   children: number;
+  guests?: number;
   checkedInAt: string;
 }
 
@@ -283,6 +294,7 @@ export interface AdminStats {
     families: number;
     spouses: number;
     children: number;
+    guests?: number;
     people: number;
     approvedPeople: number;
     expectedAmount: number;

@@ -371,3 +371,9 @@ export const videoPoster = (url: string): string | null => {
       .replace(/\.\w+(\?.*)?$/, ".jpg");
   return null;
 };
+/** R33: লিংকটি ভিডিও কি না — ইউটিউব, Cloudinary ভিডিও, সরাসরি ফাইল বা আপলোড করা ভিডিও */
+export const isVideoUrl = (url: string): boolean =>
+  /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)/.test(url) ||
+  /res\.cloudinary\.com\/[^\s]+\/video\/upload\//.test(url) ||
+  /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ||
+  url.startsWith("data:video/");

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Site } from "../types";
 import BannerCollage from "./BannerCollage";
+import CountdownGuide from "./CountdownGuide";
 import { bn, logoFallback, money, timeLabel } from "../lib";
 import { Eyebrow, Star, useReveal } from "./UI";
 import MemoryWall from "./MemoryWall";
@@ -64,6 +65,7 @@ export default function Home({ site, onTicket, navigate }: Props) {
   const branding = section("branding"),
     ribbon = section("marquee"),
     festival = section("festival"),
+    countdown = section("countdown"),
     faq = section("faq");
   // ব্যানার কোলাজ: hero সেকশনে একাধিক ছবি (প্রতি লাইনে একটি, অথবা কমা দিয়ে) দিলে
   // সবগুলোই ঘুরে ঘুরে দেখা যায়। কিছু না দিলে ব্যাচের দুইটি স্মৃতিচিত্র নিজে থেকেই আসে।
@@ -510,6 +512,8 @@ export default function Home({ site, onTicket, navigate }: Props) {
             </div>
           </section>
         )}
+        {/* R33: কাউন্টডাউন + নিবন্ধন-গাইড ভিডিও — ফি সেকশনের নিচে, ফর্মের উপরে */}
+        {countdown && <CountdownGuide section={countdown} />}
         {registration && (
           <section
             className="registration-section container section-padding"
@@ -646,6 +650,7 @@ export default function Home({ site, onTicket, navigate }: Props) {
                 "branding",
                 "marquee",
                 "festival",
+                "countdown",
                 "faq",
                 // R23: স্মৃতি-সেকশনের লেখা MemoryWall-ই দেখায় — এখানে আবার নয়
                 "past_events",

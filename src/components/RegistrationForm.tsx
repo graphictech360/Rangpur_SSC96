@@ -1,26 +1,5 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import {
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  Copy,
-  LockKeyhole,
-  Plus,
-  Minus,
-  Heart,
-  Baby,
-  CreditCard,
-  Ticket,
-  Loader2,
-  Sparkles,
-  AlertTriangle,
-  ExternalLink,
-  Camera,
-  Upload,
-  Trash2,
-  KeyRound,
-  Link2,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Baby, Camera, Check, Copy, CreditCard, ExternalLink, Heart, KeyRound, Link2, Loader2, LockKeyhole, Minus, Plus, Sparkles, Ticket, Trash2, Upload, Users } from "lucide-react";
 import type { FormField, Participant, Registration, Site, Provider } from "../types";
 import {
   bn,
@@ -57,6 +36,7 @@ export default function RegistrationForm({
   const [step, setStep] = useState(0),
     [participant, setParticipant] = useState(emptyParticipant);
   const [spouse, setSpouse] = useState(0),
+    [guests, setGuests] = useState(0),
     [children, setChildren] = useState(0);
   // খাবার ও বিশেষ অনুরোধ আর ফর্মে নেই (আয়োজকের নির্দেশ);
   // অ্যাডমিন প্যানেল থেকে যোগ করা ঘরগুলোর উত্তর এখানে রাখা হয়।
@@ -90,8 +70,13 @@ export default function RegistrationForm({
     trackingKey: string;
   } | null>(null);
   const toast = useToast();
+  // R39: অতিথির ফি ডাটাবেসে না থাকলে অতিথি-ঘর দেখানো হয় না (পুরনো সার্ভারেও নিরাপদ)
+  const guestFee = site.fees.guest;
   const total =
-    site.fees.friend + spouse * site.fees.spouse + children * site.fees.child;
+    site.fees.friend +
+    spouse * site.fees.spouse +
+    children * site.fees.child +
+    guests * (guestFee ?? 0);
   const account = site.accounts.find((a) => a.id === accountId);
   const update = (key: keyof Participant, value: string) =>
     setParticipant((p) => ({ ...p, [key]: value }));
@@ -196,6 +181,7 @@ export default function RegistrationForm({
         participant: { ...participant, photoUrl },
         spouse,
         children,
+        guests,
         answers: Object.fromEntries(
           Object.entries(answers).filter(([, v]) => v !== ""),
         ),
@@ -392,33 +378,93 @@ export default function RegistrationForm({
               </button>
             </div>
           </div>
+          {guestFee != null && (
+            <div className="family-option">
+              <span className="family-icon guest-icon">
+                <Users size={20} />
+              </span>
+              <div>
+                <b>{text("family.guests", "কতজন অতিথি?")}</b>
+                <small>
+                  {text("family.guests_hint", "মা, ভাই, বোন বা ড্রাইভার")} ·
+                  জনপ্রতি ৳ {money(guestFee)}
+                </small>
+              </div>
+              <div className="stepper">
+                <button
+                  type="button"
+                  aria-label="অতিথির সংখ্যা কমাও"
+                  disabled={!guests}
+                  onClick={() => setGuests(guests - 1)}
+                >
+                  <Minus size={15} />
+                </button>
+                <span>{bn(guests)}</span>
+                <button
+                  type="button"
+                  aria-label="অতিথির সংখ্যা বাড়াও"
+                  disabled={guests >= 20}
+                  onClick={() => setGuests(guests + 1)}
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+            </div>
+          )}
           <label className="field family-total">
             {text("family.total", "মোট পরিবারের সদস্য")}
-            <input readOnly value={`${bn(1 + spouse + children)} জন (তোমাকেসহ)`} />
+            <input
+              readOnly
+              value={`${bn(1 + spouse + children + guests)} জন (তোমাকেসহ)`}
+            />
           </label>
         </div>
       );
     // ৪) টি-শার্টের সাইজ (লুকালে ফর্মে আসে না — কিছু আয়োজনে লাগে না)
-    if (f.key === "tshirt")
+    if (f.key === "tshirt") {
+      // R39: সাইজগুলো অ্যাডমিন-এডিটযোগ্য — field options থেকে আসে;
+      // "XL | বডি ৪২˝, লেংথ ৩০˝" লিখলে সাইজটি বাছাই করলেই ঠিক তার
+      // বক্সের নিচে ড্রপডাউনের মতো মাপটা দেখা যায় (W = বডি/width, L = লেংথ)
+      const sizeEntries = (
+        f.options?.length
+          ? f.options
+          : ["XS", "S", "M", "L", "XL", "XXL", "3XL"]
+      ).map((raw) => {
+        const [size, ...rest] = String(raw).split("|");
+        return { size: size.trim(), measure: rest.join("|").trim() };
+      });
+      // মাপের লেখা সংক্ষিপ্ত রূপে: বডি → W, লেংথ → L
+      const shortMeasure = (m: string) =>
+        m
+          .replace(/বডি|body|width/gi, "W")
+          .replace(/লেংথ|লম্বা|length/gi, "L")
+          .replace(/\s*,\s*/g, " · ");
       return (
         <div className="field tshirt-field" key={f.id}>
           <span>{labelOf(f)}</span>
           <div className="size-options">
-            {["XS", "S", "M", "L", "XL", "XXL", "3XL"].map((size) => (
-              <button
-                type="button"
-                aria-pressed={participant.tshirt === size}
-                className={participant.tshirt === size ? "active" : ""}
-                key={size}
-                onClick={() => update("tshirt", size)}
-              >
-                {size}
-              </button>
-            ))}
+            {sizeEntries
+              .filter((x) => x.size)
+              .map(({ size, measure }) => (
+                <span className="size-opt" key={size}>
+                  <button
+                    type="button"
+                    aria-pressed={participant.tshirt === size}
+                    className={participant.tshirt === size ? "active" : ""}
+                    onClick={() => update("tshirt", size)}
+                  >
+                    {size}
+                  </button>
+                  {participant.tshirt === size && measure && (
+                    <span className="size-pop">{shortMeasure(measure)}</span>
+                  )}
+                </span>
+              ))}
           </div>
           {f.help && <small>{f.help}</small>}
         </div>
       );
+    }
     // ৫) অতিরিক্ত ঘর (অ্যাডমিন যোগ করেছেন)
     return (
       <DynamicFields
@@ -454,7 +500,7 @@ export default function RegistrationForm({
           <hr />
           <div>
             <span>মোট সদস্য</span>
-            <b>{bn(1 + spouse + children)} জন</b>
+            <b>{bn(1 + spouse + children + guests)} জন</b>
           </div>
           <div>
             <span>জমা দেওয়া পরিমাণ</span>
@@ -749,6 +795,7 @@ export default function RegistrationForm({
                 বন্ধু {bn(1)}
                 {spouse ? ` + জীবনসঙ্গী ${bn(spouse)}` : ""}
                 {children ? ` + শিশু ${bn(children)}` : ""}
+                {guests ? ` + অতিথি ${bn(guests)}` : ""}
               </small>
             </div>
             <b>

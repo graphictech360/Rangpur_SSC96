@@ -102,10 +102,19 @@ export default function TicketPanel({
         backgroundColor: "#fffdf6",
         cacheBust: false,
       });
+      // R34: data-URL নয়, Blob দিয়ে ডাউনলোড — মোবাইল ব্রাউজারেও নির্ভরযোগ্য
+      const binary = atob(data.split(",")[1]);
+      const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+      const blobUrl = URL.createObjectURL(
+        new Blob([bytes], { type: "image/png" }),
+      );
       const a = document.createElement("a");
       a.download = `${registration.ticketNumber}-digital-ticket.png`;
-      a.href = data;
+      a.href = blobUrl;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
       toast("ডিজিটাল টিকিট ডাউনলোড হয়েছে।");
     } catch {
       toast("ডাউনলোড হয়নি। প্রিন্ট/PDF অপশন ব্যবহার করো।", true);
@@ -328,11 +337,19 @@ export default function TicketPanel({
                       <span>
                         <Users size={16} />
                         মোট{" "}
-                        {bn(1 + registration.spouse + registration.children)} জন
+                        {bn(
+                          1 +
+                            registration.spouse +
+                            registration.children +
+                            (registration.guests || 0),
+                        )}{" "}
+                        জন
                       </span>
                       <p>
                         বন্ধু ১ · জীবনসঙ্গী {bn(registration.spouse)} · শিশু{" "}
                         {bn(registration.children)}
+                        {(registration.guests || 0) > 0 &&
+                          ` · অতিথি ${bn(registration.guests || 0)}`}
                       </p>
                       <div className="receipt-fine-details">
                         <span>এসএসসি রোল: {bn(registration.participant.sscRoll)}</span>

@@ -107,6 +107,13 @@ export const seedSections = [
       "",
     ],
     [
+      "countdown",
+      "নিবন্ধন যেন বাদ না পড়ে!",
+      "2026-12-11",
+      "ভিডিওটি দেখে ধাপে ধাপে নিবন্ধন সেরে ফেলো। শেষ তারিখের আগেই নিবন্ধন সম্পন্ন করো।",
+      "",
+    ],
+    [
       "faq",
       "মনে প্রশ্ন আছে?",
       "একটু জেনে রাখি",
@@ -171,7 +178,12 @@ export const seedFormFields = [
   kind,
   placeholder,
   help,
-  options: [],
+  // R39: টি-শার্টের সাইজগুলো এখন অ্যাডমিন-এডিটযোগ্য options —
+  // "সাইজ | মাপ" লিখলে মাপটা ফর্মে সাইজের নিচে দেখা যায়
+  options:
+    key === "tshirt"
+      ? ["XS | বডি ৩৪˝, লেংথ ২৬˝", "S | বডি ৩৬˝, লেংথ ২৭˝", "M | বডি ৩৮˝, লেংথ ২৮˝", "L | বডি ৪০˝, লেংথ ২৯˝", "XL | বডি ৪২˝, লেংথ ৩০˝", "XXL | বডি ৪৪˝, লেংথ ৩১˝", "3XL | বডি ৪৬˝, লেংথ ৩২˝"]
+      : [],
   maxLength: 200,
   required,
   visible,
@@ -204,6 +216,8 @@ export const seedFormTexts = Object.fromEntries(
     ["step1.title", "০১ / তোমার পরিচয়"],
     ["step2.label", "পরিবার"],
     ["step2.title", "০২ / কারা আসছো একসাথে?"],
+    ["family.guests", "কতজন অতিথি?"],
+    ["family.guests_hint", "মা, ভাই, বোন বা ড্রাইভার"],
     ["step3.label", "পেমেন্ট"],
     ["step3.title", "০৩ / পেমেন্টের তথ্য"],
     ["fee.label", "মোট নিবন্ধন ফি"],
@@ -396,7 +410,7 @@ export function initialState() {
   return {
     version: 1,
     event: seedEvent,
-    fees: { friend: 1020, spouse: 510, child: 205 },
+    fees: { friend: 1020, spouse: 510, child: 205, guest: 410 },
     sections: seedSections,
     albums: structuredClone(seedAlbums),
     schedule: seedSchedule,

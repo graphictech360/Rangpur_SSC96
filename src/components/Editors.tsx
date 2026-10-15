@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Camera,
   ChevronDown,
+  Video,
   Trash2,
   Eye,
   EyeOff,
@@ -18,6 +19,7 @@ import type {
   Section,
 } from "../types";
 import { money, post, shrinkBanner, shrinkPhoto } from "../lib";
+import { parseCountdownMedia } from "./CountdownGuide";
 export type EditorKind =
   | "section"
   | "schedule"
@@ -138,7 +140,7 @@ export function EntityEditor({
           visible: Boolean(form.visible),
           step: Number(form.step || 1),
           options: String(form.optionsText || "")
-            .split(",")
+            .split(form.kind === "tshirt" ? "\n" : ",")
             .map((x: string) => x.trim())
             .filter(Boolean),
         };
@@ -159,6 +161,7 @@ export function EntityEditor({
           },
           spouse: Number(form.spouse),
           children: Number(form.children),
+          guests: Number(form.guests || 0),
           food: form.food || "",
           notes: form.notes || "",
           answers: form.answers || {},
@@ -217,6 +220,17 @@ export function EntityEditor({
                 value={form.optionsText ?? (form.options || []).join(", ")}
                 onChange={(e) => set("optionsText", e.target.value)}
                 placeholder="হ্যাঁ, না, জানি না"
+              />
+            </label>
+          )}
+          {form.kind === "tshirt" && (
+            <label className="field">
+              সাইজের তালিকা (প্রতি লাইনে একটি — মাপ দেখাতে “সাইজ | মাপ” লিখুন)
+              <textarea
+                rows={7}
+                value={form.optionsText ?? (form.options || []).join("\n")}
+                onChange={(e) => set("optionsText", e.target.value)}
+                placeholder={"M | বডি ৩৮, লেংথ ২৭\nL | বডি ৪০, লেংথ ২৮\nXL | বডি ৪২, লেংথ ২৯"}
               />
             </label>
           )}
@@ -435,6 +449,13 @@ export function EntityEditor({
               true,
               form.locked,
             )}
+            {field(
+              "guests",
+              "অতিথির সংখ্যা (০–২০)",
+              "number",
+              false,
+              form.locked,
+            )}
           </div>
           {form.locked && (
             <p className="small-note">
@@ -630,7 +651,13 @@ export function EventSettings({
           নতুন নিবন্ধনে এই ফি প্রযোজ্য হবে। পুরোনো নিবন্ধনের ফি-র snapshot
           বদলাবে না।
         </p>
-        {(["friend", "spouse", "child"] as const).map((key) => (
+        {([
+          "friend",
+          "spouse",
+          "child",
+          // R39: অতিথির ফি — ডাটাবেস আপডেট হলে ঘরটি নিজে থেকে আসবে
+          ...(fees.guest != null ? ["guest" as const] : []),
+        ] as ("friend" | "spouse" | "child" | "guest")[]).map((key) => (
           <TextField
             key={key}
             label={
@@ -638,10 +665,11 @@ export function EventSettings({
                 friend: "বন্ধু (৳)",
                 spouse: "জীবনসঙ্গী (৳)",
                 child: "প্রতি শিশু (৳)",
+                guest: "প্রতি অতিথি (৳)",
               }[key]
             }
             type="number"
-            value={fees[key]}
+            value={fees[key] ?? 0}
             onChange={(value) =>
               setFees((p) => ({ ...p, [key]: Number(value) }))
             }
@@ -672,6 +700,7 @@ export const participantEditor = (r: Registration): EditorState => ({
     notes: r.notes,
     spouse: r.spouse,
     children: r.children,
+    guests: r.guests || 0,
     locked: r.status === "approved",
   },
 });
@@ -694,6 +723,10 @@ const SECTION_LABELS: Record<string, { name: string; hint?: string }> = {
     hint: "অ্যালবামের ছবি/ভিডিও নিচের “আগের আয়োজনের অ্যালবাম” অংশে আলাদাভাবে সাজানো যায়।",
   },
   festival: { name: "ফি ও পরিবারের অংশ" },
+  countdown: {
+    name: "নিবন্ধনের কাউন্টডাউন ও গাইড ভিডিও",
+    hint: "বামে নিবন্ধনের শেষ তারিখের কাউন্টডাউন, ডানে কীভাবে নিবন্ধন করতে হয় তার ভিডিও। তারিখ বদলালে কাউন্টডাউন নিজে থেকেই নতুন তারিখ ধরে চলবে। ইভেন্ট শেষ হলে নিচের “মূল পেজে দেখাবে” টিক তুলে দিলেই পুরো অংশটি লুকিয়ে যাবে — পরের ইভেন্টে আবার চালু করে নতুন তারিখ ও ভিডিও দিলেই হবে।",
+  },
   registration: { name: "নিবন্ধন অংশের লেখা" },
   schedule: { name: "সময়সূচির ভূমিকা-লেখা" },
   faq: { name: "প্রশ্নোত্তর (ভূমিকা)" },
@@ -721,6 +754,8 @@ function SectionAccordion({
   const [form, setForm] = useState({ ...section });
   // R31: হিরো সেকশনের ভেতর থেকেই বড় শিরোনাম/তারিখ/ভেন্যু সম্পাদনা
   const isHero = section.key === "hero" && !!event;
+  // R33: কাউন্টডাউন সেকশন — তারিখ (subtitle) + ভিডিও/পোস্টার (imageUrl-এর লাইন)
+  const isCountdown = section.key === "countdown";
   const [eventForm, setEventForm] = useState(() => ({
     name: event?.name || "",
     dateLabel: event?.dateLabel || "",
@@ -765,6 +800,60 @@ function SectionAccordion({
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+  // R33: কাউন্টডাউনের ভিডিও/পোস্টার — দুই ঘর, ভেতরে imageUrl-এর দুটি লাইন হিসেবে থাকে
+  const media = parseCountdownMedia(form.imageUrl || "");
+  const setMedia = (video: string, poster: string) =>
+    set("imageUrl", [video.trim(), poster.trim()].filter(Boolean).join("\n"));
+  const videoRef = useRef<HTMLInputElement>(null);
+  const posterRef = useRef<HTMLInputElement>(null);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const uploadVideo = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setVideoBusy(true);
+    setError("");
+    try {
+      if (!/^video\/(mp4|webm)$/.test(file.type))
+        throw new Error("শুধু MP4 বা WebM ভিডিও দিন।");
+      if (file.size > 3_000_000)
+        throw new Error(
+          "সরাসরি আপলোডে সর্বোচ্চ ৩ MB — বড় ভিডিও Cloudinary/YouTube-এ রেখে লিংকটি দিন।",
+        );
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error("ভিডিওটি পড়া যায়নি।"));
+        r.readAsDataURL(file);
+      });
+      const out = await post<{ url: string }>("/admin/section-video", {
+        video: dataUrl,
+      });
+      setMedia(out.url, media.poster);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setVideoBusy(false);
+      if (videoRef.current) videoRef.current.value = "";
+    }
+  };
+  const uploadPoster = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const photo = await shrinkBanner(file);
+      const out = await post<{ url: string }>("/admin/section-photo", {
+        photo,
+      });
+      setMedia(media.video, out.url);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+      if (posterRef.current) posterRef.current.value = "";
     }
   };
   const eventDirty =
@@ -884,14 +973,30 @@ function SectionAccordion({
             required
           />
         </label>
-        <label className="field">
-          ছোট শিরোনাম (ঐচ্ছিক)
-          <input
-            type="text"
-            value={form.subtitle || ""}
-            onChange={(e) => set("subtitle", e.target.value)}
-          />
-        </label>
+        {isCountdown ? (
+          <label className="field">
+            নিবন্ধনের শেষ তারিখ (কাউন্টডাউন এই তারিখ ধরে চলে)
+            <input
+              type="date"
+              value={form.subtitle || ""}
+              onChange={(e) => set("subtitle", e.target.value)}
+              required
+            />
+            <small className="field-hint">
+              তারিখ বদলে “সেভ করো” চাপলেই কাউন্টডাউন নতুন তারিখ অনুযায়ী নিজে
+              থেকে চলবে। তারিখের দিন রাত ১১:৫৯ পর্যন্ত সময় ধরা হয়।
+            </small>
+          </label>
+        ) : (
+          <label className="field">
+            ছোট শিরোনাম (ঐচ্ছিক)
+            <input
+              type="text"
+              value={form.subtitle || ""}
+              onChange={(e) => set("subtitle", e.target.value)}
+            />
+          </label>
+        )}
         <label className="field">
           বিস্তারিত লেখা
           <textarea
@@ -900,6 +1005,79 @@ function SectionAccordion({
             onChange={(e) => set("body", e.target.value)}
           />
         </label>
+        {isCountdown && (
+          <fieldset className="hero-event-fields">
+            <legend>নিবন্ধনের নিয়মের ভিডিও</legend>
+            <label className="field">
+              ভিডিও লিংক (YouTube / Cloudinary / সরাসরি MP4)
+              <input
+                type="text"
+                value={media.video}
+                onChange={(e) => setMedia(e.target.value, media.poster)}
+                placeholder="https://youtu.be/… অথবা https://res.cloudinary.com/…/video/…"
+              />
+            </label>
+            <div className="section-upload-row">
+              <input
+                ref={videoRef}
+                type="file"
+                accept="video/mp4,video/webm"
+                hidden
+                onChange={(e) => uploadVideo(e.target.files)}
+              />
+              <button
+                type="button"
+                className="button button-ghost"
+                disabled={videoBusy}
+                onClick={() => videoRef.current?.click()}
+              >
+                {videoBusy ? (
+                  <Loader2 size={16} className="spin" />
+                ) : (
+                  <Video size={16} />
+                )}
+                {videoBusy ? "ভিডিও উঠছে…" : "ছোট ভিডিও আপলোড (৩ MB পর্যন্ত)"}
+              </button>
+              <small>
+                বড় ভিডিও হলে Cloudinary বা YouTube-এ রেখে উপরের ঘরে লিংক দিন —
+                প্রিভিউ-ছবি নিজে থেকেই আসবে।
+              </small>
+            </div>
+            <label className="field">
+              প্রিভিউ-ছবি/পোস্টারের লিংক (ঐচ্ছিক)
+              <input
+                type="text"
+                value={media.poster}
+                onChange={(e) => setMedia(media.video, e.target.value)}
+                placeholder="খালি রাখলে ভিডিও থেকেই প্রিভিউ-ছবি আসবে"
+              />
+            </label>
+            <div className="section-upload-row">
+              <input
+                ref={posterRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={(e) => uploadPoster(e.target.files)}
+              />
+              <button
+                type="button"
+                className="button button-ghost"
+                disabled={uploading}
+                onClick={() => posterRef.current?.click()}
+              >
+                {uploading ? (
+                  <Loader2 size={16} className="spin" />
+                ) : (
+                  <Camera size={16} />
+                )}
+                {uploading ? "ছবি উঠছে…" : "পোস্টার ছবি আপলোড"}
+              </button>
+              <small>আপলোড শেষে “সেভ করো” চাপতে ভুলবেন না।</small>
+            </div>
+          </fieldset>
+        )}
+        {!isCountdown && (
         <label className="field">
           ছবির লিংক (ঐচ্ছিক — প্রতি লাইনে একটি)
           <textarea
@@ -908,6 +1086,8 @@ function SectionAccordion({
             onChange={(e) => set("imageUrl", e.target.value)}
           />
         </label>
+        )}
+        {!isCountdown && (
         <div className="section-upload-row">
           <input
             ref={fileRef}
@@ -935,6 +1115,7 @@ function SectionAccordion({
             “সেভ করো” চাপুন।
           </small>
         </div>
+        )}
         <div className="accordion-row">
           <label className="field accordion-order">
             সাজানোর ক্রম

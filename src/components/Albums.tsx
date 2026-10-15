@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { MemoryAlbum, MemoryMedia } from "../types";
 import { bn, post, shrinkPhoto, videoPoster } from "../lib";
+import { useToast } from "./UI";
 
 /**
  * R20: অ্যাডমিন — আগের আয়োজনের অ্যালবাম ব্যবস্থাপনা।
@@ -105,6 +106,7 @@ function AlbumCard({
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }) {
+  const toast = useToast();
   const [draft, setDraft] = useState<MemoryAlbum>({ ...album });
   const [dirty, setDirty] = useState(isNew || false);
   const [busy, setBusy] = useState(false);
@@ -125,32 +127,72 @@ function AlbumCard({
     [next[i], next[j]] = [next[j], next[i]];
     setMedia(next);
   };
+  // R36: আপলোড শেষে বিদ্যমান অ্যালবাম নিজে থেকেই সেভ হয় — সহ-অ্যাডমিনের
+  // কাজ "সেভ করুন" চাপতে ভুলে গেলেও আর হারাবে না; ভুল হলে স্পষ্ট বার্তা
+  const persist = async (next: MemoryAlbum) => {
+    if (isNew || !next.id) {
+      setDirty(true); // নতুন অ্যালবাম: নাম-তারিখ লিখে “সেভ করুন” চাপতে হবে
+      return;
+    }
+    try {
+      await onSave(next);
+      setDirty(false);
+    } catch {
+      setDirty(true); // এরর-টোস্ট আগেই দেখানো হয়েছে; সেভ-বোতাম থেকে আবার চেষ্টা
+    }
+  };
   const addFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     setBusy(true);
     try {
+      // R38: প্রতিটি ছবি আলাদাভাবে ওঠে (১ বার স্বয়ংক্রিয় পুনঃচেষ্টা-সহ) —
+      // একটি ব্যর্থ হলেও বাকিগুলো ঠিকই সেভ হয়, আর কারণটা স্পষ্ট দেখা যায়
+      const added: MemoryMedia[] = [];
+      let failedCount = 0;
+      let lastError = "";
       for (const f of Array.from(files).slice(0, 15)) {
-        const small = await shrinkPhoto(f);
-        const up = await post<{ url: string }>("/admin/memory-photo", {
-          photo: small,
-        });
-        setDraft((d) => ({
-          ...d,
-          media: [...(d.media || []), { kind: "image", url: up.url }],
-        }));
-        setDirty(true);
+        try {
+          const small = await shrinkPhoto(f);
+          let up: { url: string };
+          try {
+            up = await post<{ url: string }>("/admin/memory-photo", {
+              photo: small,
+            });
+          } catch {
+            await new Promise((r) => setTimeout(r, 1500));
+            up = await post<{ url: string }>("/admin/memory-photo", {
+              photo: small,
+            });
+          }
+          added.push({ kind: "image", url: up.url });
+        } catch (e) {
+          failedCount += 1;
+          lastError = (e as Error).message || "";
+        }
       }
+      if (added.length) {
+        const next = { ...draft, media: [...(draft.media || []), ...added] };
+        setDraft(next);
+        await persist(next);
+      }
+      if (failedCount)
+        toast(
+          `${bn(failedCount)}টি ছবি আপলোড হয়নি${lastError ? ` (${lastError})` : ""} — ওগুলো আবার দিন।`,
+          true,
+        );
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   };
-  const addLink = () => {
+  const addLink = async () => {
     const url = linkUrl.trim();
     if (!linkKind || !/^https:\/\//.test(url)) return;
-    setMedia([...media, { kind: linkKind, url }]);
+    const next = { ...draft, media: [...media, { kind: linkKind, url }] };
+    setDraft(next);
     setLinkKind(null);
     setLinkUrl("");
+    await persist(next);
   };
   const save = async () => {
     setBusy(true);
@@ -289,6 +331,11 @@ function AlbumCard({
         <span className="album-counts">
           {bn(images)} ছবি · {bn(videos)} ভিডিও
         </span>
+        {dirty && (
+          <span className="album-unsaved" role="status">
+            এখনো সেভ হয়নি
+          </span>
+        )}
         {dirty && (
           <button className="button button-primary" disabled={busy} onClick={save}>
             <Save size={16} /> {busy ? "হচ্ছে…" : "সেভ করুন"}

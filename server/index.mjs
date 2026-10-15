@@ -164,18 +164,27 @@ async function uploadPhoto(dataUrl, folder = "participants") {
   }
   const day = new Date().toISOString().slice(0, 10);
   const path = `${folder}/${day}/${randomUUID()}.${ext}`;
-  const answer = await fetch(`${supabaseUrl}/storage/v1/object/photos/${path}`, {
-    method: "POST",
-    headers: {
-      apikey: supabaseKey,
-      Authorization: `Bearer ${supabaseKey}`,
-      "Content-Type": mime,
-      "x-upsert": "false",
-      "cache-control": "max-age=31536000",
-    },
-    body: buffer,
-    signal: AbortSignal.timeout(25000),
-  });
+  let answer;
+  try {
+    answer = await fetch(`${supabaseUrl}/storage/v1/object/photos/${path}`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": mime,
+        "x-upsert": "false",
+        "cache-control": "max-age=31536000",
+      },
+      body: buffer,
+      signal: AbortSignal.timeout(25000),
+    });
+  } catch {
+    // R38: স্টোরেজে পৌঁছানো যায়নি (নেটওয়ার্ক/টাইমআউট) — জেনেরিক 500 নয়
+    throw new AppError(
+      "ছবি রাখার সার্ভারে পৌঁছানো যায়নি — কিছুক্ষণ পরে আবার চেষ্টা করুন।",
+      502,
+    );
+  }
   if (!answer.ok)
     throw new AppError(
       "ছবি আপলোড করা যায়নি। internet ঠিক আছে কি না দেখে আবার চেষ্টা করুন।",
@@ -197,7 +206,10 @@ app.use(
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "https:", "data:", "blob:"],
             fontSrc: ["'self'", "data:"],
-            connectSrc: ["'self'"],
+            // R34: টিকিট-ছবি বানাতে (html-to-image) Supabase Storage থেকে ছবি আনতে হয়
+            connectSrc: supabaseUrl
+              ? ["'self'", new URL(supabaseUrl).origin]
+              : ["'self'"],
             mediaSrc: ["'self'", "https:", "blob:"],
             // R21/R22: গুগল ম্যাপ + ইউটিউব (স্মৃতি-ভিডিও) iframe অনুমোদিত
             frameSrc: [
@@ -389,7 +401,7 @@ app.post(
   "/api/admin/memory-photo",
   express.json({ limit: "3mb" }),
   wrap(async (req, res) => {
-    const user = await freshDemoUser(await auth(req, res, true));
+    const user = await freshUser(await auth(req, res, true));
     if (!canDo(user, "album.save"))
       throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
     const { photo } = z
@@ -403,13 +415,65 @@ app.post(
   "/api/admin/section-photo",
   express.json({ limit: "3mb" }),
   wrap(async (req, res) => {
-    const user = await freshDemoUser(await auth(req, res, true));
+    const user = await freshUser(await auth(req, res, true));
     if (!canDo(user, "section.save"))
       throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
     const { photo } = z
       .object({ photo: z.string().min(64).max(2_600_000) })
       .parse(req.body);
     res.json(await uploadPhoto(photo, "sections"));
+  }),
+);
+// ── R33: কাউন্টডাউন সেকশনের ছোট গাইড-ভিডিও আপলোড (সর্বোচ্চ ~৩ MB, MP4/WebM) ──
+const VIDEO_MAX_BYTES = 3_200_000;
+function decodeVideo(dataUrl) {
+  const match = /^data:video\/(mp4|webm);base64,([A-Za-z0-9+/=]+)$/.exec(
+    String(dataUrl || "").trim(),
+  );
+  if (!match) throw new AppError("শুধু MP4 বা WebM ভিডিও দিন।", 400);
+  const buffer = Buffer.from(match[2], "base64");
+  if (!buffer.length) throw new AppError("ভিডিওটি খালি। আবার চেষ্টা করুন।", 400);
+  if (buffer.length > VIDEO_MAX_BYTES)
+    throw new AppError("ভিডিওটি খুব বড় (৩ MB-এর কম দিন) — বড় হলে লিংক ব্যবহার করুন।", 400);
+  const isMp4 =
+    match[1] === "mp4" &&
+    buffer.length > 12 &&
+    buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70;
+  const isWebm =
+    match[1] === "webm" &&
+    buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3;
+  if (!isMp4 && !isWebm)
+    throw new AppError("ফাইলটি আসল ভিডিও মনে হচ্ছে না।", 400);
+  return { buffer, mime: `video/${match[1]}`, ext: match[1] };
+}
+app.post(
+  "/api/admin/section-video",
+  express.json({ limit: "4.5mb" }),
+  wrap(async (req, res) => {
+    const user = await freshUser(await auth(req, res, true));
+    if (!canDo(user, "section.save"))
+      throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
+    const { video } = z
+      .object({ video: z.string().min(64).max(4_400_000) })
+      .parse(req.body);
+    const { buffer, mime, ext } = decodeVideo(video);
+    if (mode === "demo") return res.json({ url: video, demo: true });
+    const day = new Date().toISOString().slice(0, 10);
+    const path = `videos/${day}/${randomUUID()}.${ext}`;
+    const answer = await fetch(`${supabaseUrl}/storage/v1/object/photos/${path}`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": mime,
+        "x-upsert": "false",
+        "cache-control": "max-age=31536000",
+      },
+      body: buffer,
+    });
+    if (!answer.ok)
+      throw new AppError("ভিডিওটি আপলোড করা যায়নি। একটু পরে আবার চেষ্টা করুন।", 502);
+    res.json({ url: `${PHOTO_PREFIX}${path}` });
   }),
 );
 // ── নিরাপত্তার হিসাব (শুধু অ্যাডমিন দেখতে পান) ──
@@ -930,6 +994,18 @@ async function freshDemoUser(user) {
   if (!identity) throw new AppError("অ্যাকাউন্টটি আর সক্রিয় নেই। আবার লগইন করুন।", 401);
   return { ...user, ...identity };
 }
+// R36: লাইভেও অনুমতি প্রতিবার টাটকা পড়া হয় — লগইনের পরে মেইন অ্যাডমিন
+// এক্সেস বদলালে পুরনো কুকির বাসি অনুমতিতে আপলোড আটকে যেত (নীরব 403)
+async function freshUser(user) {
+  if (mode === "demo") return freshDemoUser(user);
+  if (!user) return user;
+  try {
+    const identity = await rpc("staff_identity", {}, user);
+    return { ...user, ...identity };
+  } catch {
+    return user; // পরিচয় পড়া না গেলে কুকির তথ্যেই চলবে (আগের আচরণ)
+  }
+}
 app.get(
   "/api/admin",
   wrap(async (req, res) => {
@@ -994,6 +1070,7 @@ function validateMutation(action, data) {
         notes: z.string().max(600).default(""),
         spouse: z.coerce.number().int().min(0).max(1),
         children: z.coerce.number().int().min(0).max(20),
+        guests: z.coerce.number().int().min(0).max(20).default(0),
       })
       .parse(data);
   if (action === "payment.save")
@@ -1101,7 +1178,26 @@ app.use((err, req, res, next) => {
       .json({ error: err.issues[0]?.message || "তথ্য যাচাই করুন।" });
   if (err instanceof AppError)
     return res.status(err.status).json({ error: err.message });
-  console.error("Request failed:", err.message);
+  // R38: চেনা ব্যর্থতাগুলো আর রহস্যময় "সার্ভারে সমস্যা" নয় — স্পষ্ট কারণ
+  if (err?.type === "entity.too.large")
+    return res.status(413).json({
+      error: "ফাইলটি খুব বড় হয়ে গেছে — ছোট ছবি/ভিডিও দিয়ে আবার চেষ্টা করুন।",
+    });
+  if (err?.type === "entity.parse.failed" || err?.type === "request.aborted")
+    return res.status(400).json({
+      error: "অনুরোধটি মাঝপথে ভেঙে গেছে — ইন্টারনেট দেখে আবার চেষ্টা করুন।",
+    });
+  if (err?.name === "TimeoutError" || err?.name === "AbortError")
+    return res.status(504).json({
+      error: "সার্ভার সাড়া দিতে দেরি করছে — কিছুক্ষণ পরে আবার চেষ্টা করুন।",
+    });
+  console.error(
+    "Request failed:",
+    req.method,
+    req.path,
+    err?.name || "",
+    err?.message || err,
+  );
   res
     .status(500)
     .json({ error: "সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পরে চেষ্টা করুন।" });
