@@ -722,7 +722,20 @@ const SECTION_LABELS: Record<string, { name: string; hint?: string }> = {
     name: "আগের আয়োজনের স্মৃতি (শিরোনাম ও বর্ণনা)",
     hint: "অ্যালবামের ছবি/ভিডিও নিচের “আগের আয়োজনের অ্যালবাম” অংশে আলাদাভাবে সাজানো যায়।",
   },
-  festival: { name: "ফি ও পরিবারের অংশ" },
+  festival: { name: "ফি ও পরিবারের অংশ (শিরোনাম)" },
+  // R43: ফি-কার্ড — প্রতিটি কার্ডের সব লেখা ও টাকার অংক আলাদা আলাদা করে সম্পাদনা
+  fee_friend: {
+    name: "ফি-কার্ড ১ — বন্ধু",
+    hint: "কার্ডের প্রতিটি লেখা নিচের ঘরগুলোতে আলাদা করে আছে — যেটা বদলাবেন সেটি লিখে “সেভ করো” চাপুন।",
+  },
+  fee_spouse: {
+    name: "ফি-কার্ড ২ — জীবনসঙ্গী",
+    hint: "কার্ডের প্রতিটি লেখা নিচের ঘরগুলোতে আলাদা করে আছে — যেটা বদলাবেন সেটি লিখে “সেভ করো” চাপুন।",
+  },
+  fee_child: {
+    name: "ফি-কার্ড ৩ — ছোট্ট অতিথি",
+    hint: "কার্ডের প্রতিটি লেখা নিচের ঘরগুলোতে আলাদা করে আছে — যেটা বদলাবেন সেটি লিখে “সেভ করো” চাপুন।",
+  },
   countdown: {
     name: "নিবন্ধনের কাউন্টডাউন ও গাইড ভিডিও",
     hint: "বামে নিবন্ধনের শেষ তারিখের কাউন্টডাউন, ডানে কীভাবে নিবন্ধন করতে হয় তার ভিডিও। তারিখ বদলালে কাউন্টডাউন নিজে থেকেই নতুন তারিখ ধরে চলবে। ইভেন্ট শেষ হলে নিচের “মূল পেজে দেখাবে” টিক তুলে দিলেই পুরো অংশটি লুকিয়ে যাবে — পরের ইভেন্টে আবার চালু করে নতুন তারিখ ও ভিডিও দিলেই হবে।",
@@ -740,14 +753,22 @@ const sectionLabel = (key: string) =>
   SECTION_LABELS[key]?.name ||
   (key.startsWith("faq_") ? `প্রশ্নোত্তর — ${key.replace("faq_", "")}` : key);
 
+// R43: কোন ফি-কার্ড কোন ফি-র সাথে যুক্ত
+const FEE_CARD_KIND: Record<string, "friend" | "spouse" | "child"> = {
+  fee_friend: "friend",
+  fee_spouse: "spouse",
+  fee_child: "child",
+};
 function SectionAccordion({
   section,
   event,
+  fees,
   onSave,
   onAskDelete,
 }: {
   section: Section;
   event?: FestivalEvent;
+  fees?: Fees;
   onSave: SaveMutation;
   onAskDelete: (s: Section) => void;
 }) {
@@ -756,6 +777,12 @@ function SectionAccordion({
   const isHero = section.key === "hero" && !!event;
   // R33: কাউন্টডাউন সেকশন — তারিখ (subtitle) + ভিডিও/পোস্টার (imageUrl-এর লাইন)
   const isCountdown = section.key === "countdown";
+  // R43: ফি-কার্ড — সব ঘর উপর-নিচ সিরিয়ালে, সাথে টাকার অংকও এখানেই
+  const feeKind = FEE_CARD_KIND[section.key];
+  const isFeeCard = !!feeKind;
+  const [feeAmount, setFeeAmount] = useState<number>(
+    feeKind && fees ? Number(fees[feeKind] ?? 0) : 0,
+  );
   const [eventForm, setEventForm] = useState(() => ({
     name: event?.name || "",
     dateLabel: event?.dateLabel || "",
@@ -864,7 +891,11 @@ function SectionAccordion({
       eventForm.venue !== event.venue ||
       eventForm.city !== event.city ||
       eventForm.venueEnglish !== event.venueEnglish);
-  const dirty = JSON.stringify(form) !== JSON.stringify(section) || eventDirty;
+  // R43: ফি-কার্ডে টাকার অংক বদলেছে কি না
+  const feeDirty =
+    isFeeCard && !!fees && Number(feeAmount) !== Number(fees[feeKind] ?? 0);
+  const dirty =
+    JSON.stringify(form) !== JSON.stringify(section) || eventDirty || feeDirty;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -873,6 +904,9 @@ function SectionAccordion({
       await onSave("section.save", { ...form, order: Number(form.order) });
       if (eventDirty && event) {
         await onSave("event.save", { ...event, ...eventForm });
+      }
+      if (feeDirty && fees) {
+        await onSave("fees.save", { ...fees, [feeKind]: Number(feeAmount) });
       }
       setSaved(true);
     } catch (err) {
@@ -964,6 +998,57 @@ function SectionAccordion({
             </label>
           </fieldset>
         )}
+        {/* R43: ফি-কার্ড — প্রতিটি ঘর আলাদা, সব উপর-নিচ একটার পর একটা */}
+        {isFeeCard && (
+          <>
+            <label className="field">
+              ১. ইংরেজি ছোট লেখা (কার্ডের একদম উপরে)
+              <input
+                type="text"
+                value={form.subtitle || ""}
+                onChange={(e) => set("subtitle", e.target.value)}
+                placeholder="যেমন: THE ORIGINAL ’96"
+              />
+            </label>
+            <label className="field">
+              ২. কার্ডের নাম (বড় লেখা)
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+                required
+              />
+            </label>
+            {fees && (
+              <label className="field">
+                ৩. টাকার অংক (৳ জনপ্রতি)
+                <input
+                  type="number"
+                  min={0}
+                  value={feeAmount}
+                  onChange={(e) => {
+                    setSaved(false);
+                    setFeeAmount(Number(e.target.value));
+                  }}
+                  required
+                />
+                <small className="field-hint">
+                  এই অংকটিই কার্ডে ও নিবন্ধনের মোট ফি-র হিসাবে ব্যবহার হবে।
+                </small>
+              </label>
+            )}
+            <label className="field">
+              ৪. নিচের ছোট লেখা (টাকার নিচে)
+              <input
+                type="text"
+                value={form.body || ""}
+                onChange={(e) => set("body", e.target.value)}
+                placeholder="যেমন: প্রতি বন্ধু · মূল নিবন্ধন"
+              />
+            </label>
+          </>
+        )}
+        {!isFeeCard && (
         <label className="field">
           শিরোনাম
           <textarea
@@ -973,7 +1058,8 @@ function SectionAccordion({
             required
           />
         </label>
-        {isCountdown ? (
+        )}
+        {isFeeCard ? null : isCountdown ? (
           <label className="field">
             নিবন্ধনের শেষ তারিখ (কাউন্টডাউন এই তারিখ ধরে চলে)
             <input
@@ -997,6 +1083,7 @@ function SectionAccordion({
             />
           </label>
         )}
+        {!isFeeCard && (
         <label className="field">
           বিস্তারিত লেখা
           <textarea
@@ -1005,6 +1092,7 @@ function SectionAccordion({
             onChange={(e) => set("body", e.target.value)}
           />
         </label>
+        )}
         {isCountdown && (
           <fieldset className="hero-event-fields">
             <legend>নিবন্ধনের নিয়মের ভিডিও</legend>
@@ -1077,7 +1165,7 @@ function SectionAccordion({
             </div>
           </fieldset>
         )}
-        {!isCountdown && (
+        {!isCountdown && !isFeeCard && (
         <label className="field">
           ছবির লিংক (ঐচ্ছিক — প্রতি লাইনে একটি)
           <textarea
@@ -1087,7 +1175,7 @@ function SectionAccordion({
           />
         </label>
         )}
-        {!isCountdown && (
+        {!isCountdown && !isFeeCard && (
         <div className="section-upload-row">
           <input
             ref={fileRef}
@@ -1116,7 +1204,7 @@ function SectionAccordion({
           </small>
         </div>
         )}
-        <div className="accordion-row">
+        <div className={isFeeCard ? "accordion-stack" : "accordion-row"}>
           <label className="field accordion-order">
             সাজানোর ক্রম
             <input
@@ -1168,11 +1256,13 @@ function SectionAccordion({
 export function SectionAccordions({
   sections,
   event,
+  fees,
   onSave,
   onAskDelete,
 }: {
   sections: Section[];
   event?: FestivalEvent;
+  fees?: Fees;
   onSave: SaveMutation;
   onAskDelete: (s: Section) => void;
 }) {
@@ -1187,6 +1277,9 @@ export function SectionAccordions({
             s.body +
             String(s.visible) +
             s.order +
+            (FEE_CARD_KIND[s.key] && fees
+              ? String(fees[FEE_CARD_KIND[s.key]] ?? "")
+              : "") +
             (s.key === "hero" && event
               ? event.name +
                 event.dateLabel +
@@ -1196,6 +1289,7 @@ export function SectionAccordions({
               : "")
           }
           section={s}
+          fees={fees}
           event={event}
           onSave={onSave}
           onAskDelete={onAskDelete}

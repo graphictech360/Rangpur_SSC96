@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   ChevronDown,
   ScanLine,
-  Sparkles,
   Navigation,
   ExternalLink,
 } from "lucide-react";
@@ -60,7 +59,10 @@ export default function Home({ site, onTicket, navigate }: Props) {
     .slice()
     .sort((a, b) => a.order - b.order);
   // টিকিট লিংকটি হেডারের ডান দিকের বোতাম হিসেবেই থাকে (মোবাইলেও সবসময় দেখা যায়)
-  const navLinks = navItems.filter((n) => n.kind !== "ticket");
+  // R44: সময়সূচি সেকশন লুকানো থাকলে মেনুর "সময়সূচি" লিংকও আপনা-আপনি লুকায়
+  const navLinks = navItems
+    .filter((n) => n.kind !== "ticket")
+    .filter((n) => n.kind !== "section" || n.target !== "schedule" || !!schedule);
   const ticketItem = navItems.find((n) => n.kind === "ticket");
   const branding = section("branding"),
     ribbon = section("marquee"),
@@ -249,13 +251,16 @@ export default function Home({ site, onTicket, navigate }: Props) {
                   নিবন্ধন করি
                   <ArrowUpRight size={21} />
                 </a>
-                <a
-                  className="text-button"
-                  href="#schedule"
-                  onClick={goTo("schedule")}
-                >
-                  দিনের আয়োজন <ArrowRight size={18} />
-                </a>
+                {/* R44: সময়সূচি লুকানো থাকলে এই লিংকটিও দেখানো হয় না */}
+                {schedule && (
+                  <a
+                    className="text-button"
+                    href="#schedule"
+                    onClick={goTo("schedule")}
+                  >
+                    দিনের আয়োজন <ArrowRight size={18} />
+                  </a>
+                )}
               </div>
               <div className="hero-event-info">
                 <div>
@@ -466,7 +471,10 @@ export default function Home({ site, onTicket, navigate }: Props) {
                   <Eyebrow>{festival.subtitle}</Eyebrow>
                   <h2 className="section-title">{festival.title}</h2>
                 </div>
-                <p style={{ whiteSpace: "pre-line" }}>{festival.body}</p>
+                {/* R43: ডান পাশের লেখা বাদ — অ্যাডমিন festival সেকশনের “বিস্তারিত লেখা”-য় কিছু লিখলে তবেই দেখাবে */}
+                {festival.body && (
+                  <p style={{ whiteSpace: "pre-line" }}>{festival.body}</p>
+                )}
               </div>
               {festival.imageUrl && (
                 <img
@@ -476,38 +484,35 @@ export default function Home({ site, onTicket, navigate }: Props) {
                   loading="lazy"
                 />
               )}
+              {/* R43: কার্ডের প্রতিটি লেখা অ্যাডমিনের fee_* সেকশন থেকে আসে — না থাকলে আগের লেখা */}
               <div className="fee-grid">
                 <FeeCard
                   icon={<Users />}
-                  title="বন্ধু"
-                  english="THE ORIGINAL ’96"
+                  title={section("fee_friend")?.title || "বন্ধু"}
+                  english={section("fee_friend")?.subtitle || "THE ORIGINAL ’96"}
                   amount={site.fees.friend}
-                  note="প্রতি বন্ধু · মূল নিবন্ধন"
+                  note={section("fee_friend")?.body || "প্রতি বন্ধু · মূল নিবন্ধন"}
                   color="green"
                   index="01"
                 />
                 <FeeCard
                   icon={<Heart />}
-                  title="জীবনসঙ্গী"
-                  english="BETTER TOGETHER"
+                  title={section("fee_spouse")?.title || "জীবনসঙ্গী"}
+                  english={section("fee_spouse")?.subtitle || "BETTER TOGETHER"}
                   amount={site.fees.spouse}
-                  note="প্রতি জীবনসঙ্গী · ঐচ্ছিক"
+                  note={section("fee_spouse")?.body || "প্রতি জীবনসঙ্গী · ঐচ্ছিক"}
                   color="peach"
                   index="02"
                 />
                 <FeeCard
                   icon={<Baby />}
-                  title="ছোট্ট অতিথি"
-                  english="LITTLE ONES, BIG JOY"
+                  title={section("fee_child")?.title || "ছোট্ট অতিথি"}
+                  english={section("fee_child")?.subtitle || "LITTLE ONES, BIG JOY"}
                   amount={site.fees.child}
-                  note="প্রতি শিশু · সংখ্যা অনুযায়ী"
+                  note={section("fee_child")?.body || "প্রতি শিশু · সংখ্যা অনুযায়ী"}
                   color="yellow"
                   index="03"
                 />
-              </div>
-              <div className="fee-footnote">
-                <Sparkles size={17} />
-                নিবন্ধনে খাবারের পছন্দ ও বন্ধুর টি-শার্টের সাইজ জানিয়ে দিও।
               </div>
             </div>
           </section>
@@ -654,7 +659,10 @@ export default function Home({ site, onTicket, navigate }: Props) {
                 "faq",
                 // R23: স্মৃতি-সেকশনের লেখা MemoryWall-ই দেখায় — এখানে আবার নয়
                 "past_events",
-              ].includes(s.key) && !s.key.startsWith("faq_"),
+              ].includes(s.key) &&
+              !s.key.startsWith("faq_") &&
+              // R43: ফি-কার্ডের লেখা ফি-সেকশনেই দেখানো হয় — এখানে আবার নয়
+              !s.key.startsWith("fee_"),
           )
           .map((s) => (
             <section

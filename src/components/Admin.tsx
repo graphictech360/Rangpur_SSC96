@@ -302,6 +302,63 @@ export default function Admin({
       toast((e as Error).message, true);
     }
   };
+  // R44: পেমেন্ট নম্বর টেনে (বা তীর-বোতামে) সাজানো — নতুন ক্রম account.save দিয়েই সেভ হয়
+  const reorderAccounts = async (fromId: string, toIndex: number) => {
+    const list = (data?.accounts || []).slice().sort((a, b) => a.order - b.order);
+    const from = list.findIndex((x) => x.id === fromId);
+    if (from < 0 || toIndex < 0 || toIndex >= list.length || from === toIndex) return;
+    const moved = list.splice(from, 1)[0];
+    list.splice(toIndex, 0, moved);
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i];
+        const order = (i + 1) * 10;
+        if (a.order !== order) await mutate("account.save", { ...a, order });
+      }
+      await load();
+      onSiteChange();
+      toast("পেমেন্ট নম্বরের ক্রম বদলানো হলো।");
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+  };
+  const dropAccount = async (targetId: string) => {
+    const list = (data?.accounts || []).slice().sort((a, b) => a.order - b.order);
+    const to = list.findIndex((x) => x.id === targetId);
+    const id = dragId;
+    setDragId("");
+    setOverId("");
+    if (to >= 0 && id) await reorderAccounts(id, to);
+  };
+  // R44: সময়সূচি — পুরো সেকশনটাই মূল পেজ থেকে লুকানো/দেখানো
+  const scheduleSection = (data?.sections || []).find((x) => x.key === "schedule");
+  const canToggleSchedule =
+    staff.role === "admin" || (staff.permissions || []).includes("content");
+  const toggleScheduleSection = async () => {
+    const s = (data?.sections || []).find((x) => x.key === "schedule");
+    if (!s) return;
+    try {
+      await mutate("section.save", {
+        id: s.id,
+        key: s.key,
+        title: s.title,
+        subtitle: s.subtitle,
+        body: s.body,
+        imageUrl: s.imageUrl,
+        order: s.order,
+        visible: !s.visible,
+      });
+      await load();
+      onSiteChange();
+      toast(
+        s.visible
+          ? "সময়সূচি মূল পেজ থেকে লুকানো হলো — চাইলে যেকোনো সময় আবার দেখাতে পারবেন।"
+          : "সময়সূচি এখন মূল পেজে সবাই দেখতে পাচ্ছে।",
+      );
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+  };
   // লোগো বদল: ব্রাউজারেই ছোট করা হয়, তারপর Storage-এ ওঠে ও সেকশনে সেভ হয়
   const pickLogo = async (file?: File | null) => {
     if (!file) return;
@@ -994,6 +1051,7 @@ export default function Admin({
                     <SectionAccordions
                       sections={data.sections}
                       event={data.event}
+                      fees={data.fees}
                       onSave={save}
                       onAskDelete={(s) =>
                         requestRemove(
@@ -1020,6 +1078,47 @@ export default function Admin({
                 )}
                 {tab === "schedule" && (
                   <>
+                    {/* R44: পুরো সময়সূচি সেকশন লুকানো/দেখানো — প্রস্তুত না হওয়া পর্যন্ত দর্শকদের থেকে আড়ালে রাখা যায় */}
+                    {scheduleSection && canToggleSchedule && (
+                      <div
+                        className={`schedule-visibility-bar ${
+                          scheduleSection.visible ? "is-on" : "is-off"
+                        }`}
+                      >
+                        <p>
+                          {scheduleSection.visible ? (
+                            <>
+                              <Eye size={16} /> সময়সূচি এখন <b>মূল পেজে দেখা যাচ্ছে</b>।
+                              প্রস্তুত না হলে লুকিয়ে রাখুন — পরে এক ক্লিকেই আবার দেখাতে
+                              পারবেন।
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff size={16} /> সময়সূচি এখন <b>দর্শকদের থেকে লুকানো</b>।
+                              এখানে সব সাজিয়ে রাখুন, প্রস্তুত হলে “দেখান” চাপুন।
+                            </>
+                          )}
+                        </p>
+                        <button
+                          className={
+                            scheduleSection.visible
+                              ? "button button-outline"
+                              : "button button-primary"
+                          }
+                          onClick={toggleScheduleSection}
+                        >
+                          {scheduleSection.visible ? (
+                            <>
+                              <EyeOff size={16} /> সূচি লুকান
+                            </>
+                          ) : (
+                            <>
+                              <Eye size={16} /> সূচি দেখান
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                     <div className="admin-section-toolbar">
                       <p>সময় ও আয়োজনের বাস্তব তথ্য পরে এখানে পরিবর্তন করুন।</p>
                       <button
@@ -1120,15 +1219,40 @@ export default function Admin({
                         নম্বর যোগ করুন
                       </button>
                     </div>
+    <p className="account-order-hint">
+                      {/* R44: যে ক্রমে সাজাবেন, নিবন্ধন পেজে নম্বরগুলো সেই ক্রমেই দেখা যাবে */}
+                      <GripVertical size={14} /> কার্ড টেনে এনে (বা তীর-বোতামে) পছন্দমতো
+                      সিরিয়ালে সাজান — নিবন্ধন পেজে একই ক্রমে দেখা যাবে।
+                    </p>
                     <div className="account-editor-grid">
                       {data.accounts
+                        .slice()
                         .sort((a, b) => a.order - b.order)
-                        .map((a) => (
+                        .map((a, idx, sorted) => (
                           <article
-                            className={`admin-panel-card account-editor-card ${a.provider}`}
+                            className={`admin-panel-card account-editor-card ${a.provider}${
+                              dragId === a.id ? " dragging" : ""
+                            }${overId === a.id && dragId !== a.id ? " drag-over" : ""}`}
                             key={a.id}
+                            draggable
+                            onDragStart={() => setDragId(a.id)}
+                            onDragEnd={() => {
+                              setDragId("");
+                              setOverId("");
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (overId !== a.id) setOverId(a.id);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              dropAccount(a.id);
+                            }}
                           >
                             <div>
+                              <span className="drag-handle" title="টেনে জায়গা বদলাও">
+                                <GripVertical size={16} />
+                              </span>
                               <span className="account-provider">
                                 {a.provider === "bkash" ? "◈ bKash" : "◉ Nagad"}
                               </span>
@@ -1138,6 +1262,24 @@ export default function Admin({
                                 }
                               >
                                 {a.active ? "সক্রিয়" : "বন্ধ"}
+                              </span>
+                              <span className="account-order-tools">
+                                <button
+                                  className="icon-button"
+                                  aria-label={`${a.name} উপরে নাও`}
+                                  disabled={idx === 0}
+                                  onClick={() => reorderAccounts(a.id, idx - 1)}
+                                >
+                                  <ArrowUp size={15} />
+                                </button>
+                                <button
+                                  className="icon-button"
+                                  aria-label={`${a.name} নিচে নাও`}
+                                  disabled={idx === sorted.length - 1}
+                                  onClick={() => reorderAccounts(a.id, idx + 1)}
+                                >
+                                  <ArrowDown size={15} />
+                                </button>
                               </span>
                             </div>
                             <h3>{a.name}</h3>
