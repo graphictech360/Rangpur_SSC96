@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import type { MemoryAlbum, MemoryMedia } from "../types";
-import { bn, post, shrinkPhoto, videoPoster } from "../lib";
+import { bn, post, shrinkPhoto, videoPoster, videoPosterFallback } from "../lib";
 import { useToast } from "./UI";
 
 /**
@@ -269,7 +269,7 @@ function AlbumCard({
             ) : videoPoster(m.url) ? (
               // R22: ভিডিওর নিজের প্রিভিউ-ছবি (ইউটিউব/Cloudinary থাম্বনেইল)
               <span className="album-video-thumb">
-                <img src={videoPoster(m.url)!} alt={`ভিডিও ${i + 1}`} loading="lazy" />
+                <img src={videoPoster(m.url)!} onLoad={videoPosterFallback} onError={videoPosterFallback} alt={`ভিডিও ${i + 1}`} loading="lazy" />
                 <Film size={16} />
               </span>
             ) : (

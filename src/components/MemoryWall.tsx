@@ -9,7 +9,7 @@ import {
   X,
 } from "lucide-react";
 import type { MemoryAlbum, MemoryMedia, Section } from "../types";
-import { bn, videoPoster } from "../lib";
+import { bn, videoPoster, videoPosterFallback } from "../lib";
 import { Eyebrow } from "./UI";
 
 /**
@@ -169,7 +169,7 @@ export default function MemoryWall({
                   <li key={v.id || i}>
                     <button type="button" onClick={() => setPlayer(v)}>
                       {poster ? (
-                        <img src={poster} alt="" loading="lazy" />
+                        <img src={poster} onLoad={videoPosterFallback} onError={videoPosterFallback} alt="" loading="lazy" />
                       ) : isFileVideo(v.url) ? (
                         // সরাসরি ভিডিও-ফাইল: প্রথম ফ্রেমই প্রিভিউ-ছবি
                         <video

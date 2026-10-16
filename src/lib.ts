@@ -359,17 +359,32 @@ export function downloadCsv(registrations: Registration[]) {
 
 /** R22: ভিডিও লিংক থেকে প্রিভিউ-ছবি —
  *  ইউটিউব হলে অফিসিয়াল থাম্বনেইল, Cloudinary হলে ভিডিওর প্রথম ফ্রেমের jpg।
- *  অন্য লিংকে null — তখন UI ভিডিওর নিজের প্রথম ফ্রেম (preload="metadata") দেখায়। */
+ *  অন্য লিংকে null — তখন UI ভিডিওর নিজের প্রথম ফ্রেম (preload="metadata") দেখায়।
+ *  R41: ইউটিউবে HD থাম্বনেইল (maxresdefault, ১২৮০×৭২০) — আগের hqdefault
+ *  (৪৮০×৩৬০) বড় টাইলে ঝাপসা দেখাত; HD না থাকলে onError-এ ফলব্যাক। */
 export const videoPoster = (url: string): string | null => {
   const yt = url.match(
     /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,20})/,
   );
-  if (yt) return `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`;
+  if (yt) return `https://i.ytimg.com/vi/${yt[1]}/maxresdefault.jpg`;
   if (/res\.cloudinary\.com\/[^\s]+\/video\/upload\//.test(url))
     return url
       .replace("/video/upload/", "/video/upload/so_0,w_640,h_360,c_fill/")
       .replace(/\.\w+(\?.*)?$/, ".jpg");
   return null;
+};
+/** R41: ইউটিউবের HD থাম্বনেইল তৈরি না হলে ইউটিউব 404-এর সাথে ধূসর
+ *  ১২০×৯০ ছবি পাঠায় (এরর ফায়ার হয় না) — তাই onLoad-এ আসল মাপ দেখে
+ *  ছোট হলে hqdefault-এ নেমে আসি; নেটওয়ার্ক-এররেও একই ফলব্যাক।
+ *  ব্যবহার: <img onLoad={videoPosterFallback} onError={videoPosterFallback}> */
+export const videoPosterFallback = (e: {
+  currentTarget: HTMLImageElement;
+  type?: string;
+}) => {
+  const img = e.currentTarget;
+  if (!img.src.includes("/maxresdefault.jpg")) return;
+  if (e.type === "error" || img.naturalWidth <= 120)
+    img.src = img.src.replace("/maxresdefault.jpg", "/hqdefault.jpg");
 };
 /** R33: লিংকটি ভিডিও কি না — ইউটিউব, Cloudinary ভিডিও, সরাসরি ফাইল বা আপলোড করা ভিডিও */
 export const isVideoUrl = (url: string): boolean =>

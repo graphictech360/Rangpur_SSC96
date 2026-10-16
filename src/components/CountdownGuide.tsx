@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, PlayCircle, Video } from "lucide-react";
 import type { Section } from "../types";
-import { bn, isVideoUrl, videoPoster } from "../lib";
+import { bn, isVideoUrl, videoPoster, videoPosterFallback } from "../lib";
 
 /**
  * R33: "বন্ধুর সাথে, পরিবারও আসুক" সেকশনের ঠিক নিচে ও নিবন্ধন ফর্মের উপরে —
@@ -154,7 +154,15 @@ export default function CountdownGuide({ section }: { section: Section }) {
                     onClick={() => setPlaying(true)}
                     aria-label="ভিডিও চালাও"
                   >
-                    {posterUrl && <img src={posterUrl} alt="নিবন্ধনের নিয়মের ভিডিও" loading="lazy" />}
+                    {posterUrl && (
+                      <img
+                        src={posterUrl}
+                        onLoad={videoPosterFallback}
+                        onError={videoPosterFallback}
+                        alt="নিবন্ধনের নিয়মের ভিডিও"
+                        loading="lazy"
+                      />
+                    )}
                     <span className="countdown-play">
                       <PlayCircle size={56} />
                       <small>কীভাবে নিবন্ধন করবে — ভিডিওটি দেখো</small>
