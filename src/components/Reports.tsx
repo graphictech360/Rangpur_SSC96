@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Users,
   Wallet,
@@ -32,6 +33,31 @@ export default function Reports({
   const t = stats.totals;
   const percent = Math.max(0, Math.min(100, t.checkInPercent || 0));
   const maxDaily = Math.max(1, ...stats.daily.map((d) => d.count));
+
+  /* R52: তালিকা ডাউনলোডের ফিল্টার — অনুমোদিত / প্রত্যাখ্যাত / সব */
+  const [dlStatus, setDlStatus] = useState<"approved" | "rejected" | "all">(
+    "approved",
+  );
+  const dlLabel =
+    dlStatus === "approved"
+      ? "অনুমোদিত"
+      : dlStatus === "rejected"
+        ? "প্রত্যাখ্যাত"
+        : "সব";
+  const dlList = () =>
+    registrations.filter(
+      (r) => !r.archivedAt && (dlStatus === "all" || r.status === dlStatus),
+    );
+  const statusBn = (r: Registration) =>
+    r.status === "approved"
+      ? r.checkedInAt
+        ? "উপস্থিত"
+        : "অনুমোদিত"
+      : r.status === "rejected"
+        ? "প্রত্যাখ্যাত"
+        : r.status === "cancelled"
+          ? "বাতিল"
+          : "অপেক্ষায়";
 
   const exportSchools = () =>
     downloadTableCsv("Rangpur-SSC96-school-report.csv", [
@@ -112,29 +138,27 @@ export default function Reports({
     ]);
 
   const exportAttendance = () =>
-    downloadTableCsv("Rangpur-SSC96-attendance.csv", [
+    downloadTableCsv(`Rangpur-SSC96-list-${dlStatus}.csv`, [
       [
         "টিকিট",
         "নাম",
         "স্কুল",
         "মোবাইল",
         "কতজন",
-        "যাচাইকৃত টাকা",
-        "চেক-ইন",
+        "টাকা",
+        "অবস্থা",
         "চেক-ইনের সময়",
       ],
-      ...registrations
-        .filter((r) => r.status === "approved" && !r.archivedAt)
-        .map((r) => [
-          r.ticketNumber,
-          r.participant.name,
-          r.participant.school,
-          r.participant.mobile,
-          1 + r.spouse + r.children,
-          r.total,
-          r.checkedInAt ? "উপস্থিত" : "অনুপস্থিত",
-          r.checkedInAt || "",
-        ]),
+      ...dlList().map((r) => [
+        r.ticketNumber,
+        r.participant.name,
+        r.participant.school,
+        r.participant.mobile,
+        1 + r.spouse + r.children + (r.guests || 0),
+        r.total,
+        statusBn(r),
+        r.checkedInAt || "",
+      ]),
     ]);
 
   // ── R19: লেটারহেড-সহ PDF (ব্যাংক স্টেটমেন্ট ধাঁচ, ১ম পাতায় হেডার) ──
@@ -234,12 +258,15 @@ export default function Reports({
   };
   const exportAttendancePdf = async () => {
     const { exportTablePdf } = await import("../pdf");
-    const approved = registrations.filter(
-      (r) => r.status === "approved" && !r.archivedAt,
-    );
+    const list = dlList();
+    const titles = {
+      approved: "উপস্থিতি রিপোর্ট (অনুমোদিত)",
+      rejected: "প্রত্যাখ্যাত নিবন্ধনের রিপোর্ট",
+      all: "সব নিবন্ধনের রিপোর্ট",
+    } as const;
     await exportTablePdf({
-      filename: `Rangpur-SSC96-attendance-${pdfDate()}.pdf`,
-      reportTitle: "উপস্থিতি রিপোর্ট",
+      filename: `Rangpur-SSC96-list-${dlStatus}-${pdfDate()}.pdf`,
+      reportTitle: titles[dlStatus],
       event,
       columns: [
         { label: "টিকিট", width: 13 },
@@ -248,38 +275,60 @@ export default function Reports({
         { label: "মোবাইল", width: 15 },
         { label: "কতজন", width: 8, align: "right" },
         { label: "৳", width: 10, align: "right" },
-        { label: "চেক-ইন", width: 10, align: "center" },
+        { label: "অবস্থা", width: 10, align: "center" },
       ],
-      rows: approved.map((r) => [
+      rows: list.map((r) => [
         r.ticketNumber,
         r.participant.name,
         r.participant.school,
         r.participant.mobile,
-        bn(1 + r.spouse + r.children),
+        bn(1 + r.spouse + r.children + (r.guests || 0)),
         money(r.total),
-        r.checkedInAt ? "উপস্থিত" : "অনুপস্থিত",
+        statusBn(r),
       ]),
-      grandSummary: {
-        title: "উপস্থিতির মোট হিসাব",
-        items: [
-          { label: "অনুমোদিত পরিবার", value: bn(approved.length) },
-          {
-            label: "চেক-ইন (মানুষ)",
-            value: `${bn(t.checkedInPeople)} জন`,
-            tone: "good",
-          },
-          {
-            label: "অনুপস্থিত (মানুষ)",
-            value: `${bn(t.absentPeople)} জন`,
-            tone: "bad",
-          },
-          {
-            label: "উপস্থিতির হার",
-            value: `${bn(t.checkInPercent)}%`,
-            strong: true,
-          },
-        ],
-      },
+      grandSummary:
+        dlStatus === "approved"
+          ? {
+              title: "উপস্থিতির মোট হিসাব",
+              items: [
+                { label: "অনুমোদিত পরিবার", value: bn(list.length) },
+                {
+                  label: "চেক-ইন (মানুষ)",
+                  value: `${bn(t.checkedInPeople)} জন`,
+                  tone: "good",
+                },
+                {
+                  label: "অনুপস্থিত (মানুষ)",
+                  value: `${bn(t.absentPeople)} জন`,
+                  tone: "bad",
+                },
+                {
+                  label: "উপস্থিতির হার",
+                  value: `${bn(t.checkInPercent)}%`,
+                  strong: true,
+                },
+              ],
+            }
+          : {
+              title: "এই তালিকার মোট হিসাব",
+              items: [
+                { label: "মোট নিবন্ধন", value: bn(list.length) },
+                {
+                  label: "অনুমোদিত",
+                  value: bn(list.filter((r) => r.status === "approved").length),
+                  tone: "good",
+                },
+                {
+                  label: "প্রত্যাখ্যাত",
+                  value: bn(list.filter((r) => r.status === "rejected").length),
+                  tone: "bad",
+                },
+                {
+                  label: "অপেক্ষায়",
+                  value: bn(list.filter((r) => r.status === "pending").length),
+                },
+              ],
+            },
     });
   };
 
@@ -297,8 +346,23 @@ export default function Reports({
           <button className="button button-outline" onClick={exportSchools}>
             <Download size={17} /> স্কুলভিত্তিক CSV
           </button>
+          {/* R52: কোন নিবন্ধনের তালিকা নামবে — অনুমোদিত/প্রত্যাখ্যাত/সব */}
+          <label className="report-dl-filter">
+            তালিকা:
+            <select
+              value={dlStatus}
+              onChange={(e) =>
+                setDlStatus(e.target.value as "approved" | "rejected" | "all")
+              }
+              aria-label="কোন নিবন্ধনের তালিকা ডাউনলোড হবে"
+            >
+              <option value="approved">অনুমোদিত</option>
+              <option value="rejected">প্রত্যাখ্যাত</option>
+              <option value="all">সব</option>
+            </select>
+          </label>
           <button className="button button-outline" onClick={exportAttendance}>
-            <Download size={17} /> উপস্থিতি CSV
+            <Download size={17} /> তালিকা CSV ({dlLabel})
           </button>
           <button className="button button-primary" onClick={exportSummaryPdf}>
             <Download size={17} /> সারসংক্ষেপ PDF
@@ -310,7 +374,7 @@ export default function Reports({
             className="button button-outline"
             onClick={exportAttendancePdf}
           >
-            <Download size={17} /> উপস্থিতি PDF
+            <Download size={17} /> তালিকা PDF ({dlLabel})
           </button>
         </div>
       </div>

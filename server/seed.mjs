@@ -75,6 +75,18 @@ export const seedSections = [
     order: 3,
   },
   {
+    // R56: QR-পেমেন্ট মোডের সুইচ — দৃশ্যমান করলে ফর্মে কেবল QR, বিকাশ/নগদ নম্বর লুকানো
+    id: randomUUID(),
+    key: "payment_qr",
+    title: "R A Farm Shop",
+    subtitle:
+      "বিকাশ / নগদ / রকেট বা যেকোনো ব্যাংক অ্যাপ খুলে নিচের QR কোডটি স্ক্যান করো।",
+    body: "নিবন্ধন শেষ করার পর আয়োজকেরা ২৪ ঘণ্টার মধ্যে তোমার পেমেন্ট যাচাই করবেন — অনুমোদনের সাথে সাথেই তোমার গোপন লিংকে QR টিকিট চলে আসবে।",
+    imageUrl: "/assets/payment-qr.svg",
+    visible: false,
+    order: 90,
+  },
+  {
     id: randomUUID(),
     key: "footer",
     title: "দেখা হবে, বন্ধু!",
@@ -196,6 +208,25 @@ export const seedFormFields = [
   isLocked: locked,
   order,
 }));
+// R57: QR-মোডে পেমেন্টের মাধ্যম — ক্লায়েন্ট এই ঘরটিকে ধাপ ১/২-এ দেখায় না,
+// কেবল পেমেন্ট ধাপের QR-অংশে ড্রপডাউন হিসেবে দেখায়; উত্তর answers-এ জমা হয়।
+// DB-তে required=false রাখা জরুরি — নইলে QR-মোড বন্ধ থাকলে নিবন্ধন আটকে যাবে।
+seedFormFields.push({
+  id: "00000000-0000-4000-8000-000000000190",
+  key: "payment_channel",
+  label: "কোন মাধ্যমে পেমেন্ট করেছ",
+  kind: "select",
+  options: ["বিকাশ", "নগদ", "রকেট", "ব্যাংক অ্যাকাউন্ট"],
+  placeholder: "",
+  help: "এই ঘরটি নিবন্ধন ফর্মের পেমেন্ট ধাপে (QR-পেমেন্ট চালু থাকলে) দেখা যায়।",
+  maxLength: 200,
+  required: false,
+  visible: true,
+  step: 1,
+  isBase: false,
+  isLocked: false,
+  order: 500,
+});
 
 export const seedNavItems = [
   ["section", "আমাদের গল্প", "memories", 10],

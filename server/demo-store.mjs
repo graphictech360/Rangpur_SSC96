@@ -78,7 +78,134 @@ function findReg(id) {
   if (!r) throw new AppError("নিবন্ধন পাওয়া যায়নি।", 404);
   return r;
 }
+// ── R46: ডেমো ভিজিটর-অ্যানালিটিক্স সহায়ক ──
+const DHAKA = "Asia/Dhaka";
+const dhakaDay = (d) => new Date(d).toLocaleDateString("sv-SE", { timeZone: DHAKA });
+const dhakaHour = (d) => {
+  const x = new Date(d);
+  x.setMinutes(0, 0, 0);
+  return x;
+};
+const hourLabel = (d) =>
+  new Date(d).toLocaleTimeString("en-GB", { timeZone: DHAKA, hour: "2-digit", minute: "2-digit", hour12: false });
+function ensureVisitSeed() {
+  // R50: ফ্ল্যাগ-গার্ড — আসল বীকন আগে এলেও নমুনা-ভিজিট ঠিকই যুক্ত হয় (ডেমো প্রিভিউর জন্য)
+  if (state.visitSeeded) return;
+  state.visitSeeded = true;
+  const existing = Array.isArray(state.visits) ? state.visits : [];
+  // ডেমো প্রিভিউর জন্য নমুনা ভিজিট — গত ২ দিনে ছড়ানো
+  const cities = [
+    ["BD", "C", "Rangpur"], ["BD", "C", "Rangpur"], ["BD", "13", "Dhaka"],
+    ["BD", "13", "Dhaka"], ["BD", "27", "Rajshahi"], ["BD", "06", "Chattogram"],
+    ["SA", "01", "Riyadh"], ["AE", "03", "Dubai"], ["MY", "14", "Kuala Lumpur"],
+    ["US", "NY", "New York"], ["GB", "ENG", "London"], ["IT", "25", "Rome"],
+  ];
+  state.visits = existing.concat(Array.from({ length: 48 }, (_, i) => {
+    const [country, region, city] = cities[i % cities.length];
+    return {
+      at: new Date(Date.now() - Math.floor(Math.random() * 2 * 86400000)).toISOString(),
+      path: "/",
+      country,
+      region,
+      city,
+      visitor: "demo-" + (i % 17),
+    };
+  }));
+}
 export const demo = {
+  recordVisit: (v) =>
+    // transact-কিউ ব্যবহার — একসাথে অনেক ভিজিট এলেও ফাইল-লেখায় রেস হয় না
+    transact(() => {
+      if (!Array.isArray(state.visits)) state.visits = [];
+      // R53: একই ভিজিটর একই পেজে ৬০ সেকেন্ডের মধ্যে আবার এলে দ্বিগুণ গোনা হয় না
+      const cutoff = Date.now() - 60000;
+      if (
+        (state.visits || []).some(
+          (x) =>
+            x.visitor === v.visitor &&
+            x.path === v.path &&
+            Date.parse(x.at) > cutoff,
+        )
+      )
+        return;
+      state.visits.push({ at: new Date().toISOString(), ...v });
+      if (state.visits.length > 5000) state.visits = state.visits.slice(-4000);
+    }),
+  analytics: async (user, range = {}) => {
+    requirePanel(user);
+    // R49: সহ-অ্যাডমিনের "ভিজিটর অ্যানালিটিক্স" অনুমতি লাগে
+    if (!hasPerm(user, "analytics"))
+      throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
+    ensureVisitSeed();
+    const visits = state.visits || [];
+    const now = Date.now();
+    const today = dhakaDay(now);
+    const online = new Set(
+      visits.filter((v) => now - Date.parse(v.at) < 300000).map((v) => v.visitor),
+    ).size;
+    const todayVisits = visits.filter((v) => dhakaDay(v.at) === today);
+    const hourly = [];
+    for (let i = 23; i >= 0; i--) {
+      const h = dhakaHour(now - i * 3600000);
+      const next = h.getTime() + 3600000;
+      hourly.push({
+        h: hourLabel(h),
+        count: visits.filter((v) => Date.parse(v.at) >= h.getTime() && Date.parse(v.at) < next).length,
+      });
+    }
+    // R50: দিনভিত্তিক চার্টের রেঞ্জ বাছাই — ডিফল্ট শেষ ১৪ দিন, সর্বোচ্চ ১ বছর
+    const dayMs = 86400000;
+    const todayDate = today;
+    let to = range.to && range.to <= todayDate ? range.to : todayDate;
+    let from = range.from || dhakaDay(Date.parse(to + "T12:00:00+06:00") - 13 * dayMs);
+    if (from > to) from = to;
+    const minFrom = dhakaDay(Date.parse(to + "T12:00:00+06:00") - 365 * dayMs);
+    if (from < minFrom) from = minFrom;
+    const dayList = [];
+    for (let t = Date.parse(from + "T12:00:00+06:00"); dhakaDay(t) <= to; t += dayMs)
+      dayList.push(dhakaDay(t));
+    const daily = dayList.map((d) => ({ d, count: visits.filter((v) => dhakaDay(v.at) === d).length }));
+    const regs = state.registrations.filter((r) => !r.archivedAt);
+    const regDays = [];
+    for (let i = 13; i >= 0; i--) regDays.push(dhakaDay(now - i * dayMs));
+    // R52: দিনপ্রতি অনুমোদিত/প্রত্যাখ্যাত আলাদা করে — অ্যানালিটিক্সের ২-রঙা বারের জন্য
+    const regDaily = regDays.map((d) => {
+      const list = regs.filter((r) => dhakaDay(r.createdAt) === d);
+      return {
+        d,
+        count: list.length,
+        approved: list.filter((r) => r.status === "approved").length,
+        rejected: list.filter((r) => r.status === "rejected").length,
+      };
+    });
+    const rangeVisits = visits.filter((v) => dhakaDay(v.at) >= from && dhakaDay(v.at) <= to).length;
+    const tally = (key, fallback, limit) => {
+      const m = new Map();
+      for (const v of visits) {
+        const k = v[key] || fallback;
+        m.set(k, (m.get(k) || 0) + 1);
+      }
+      return [...m.entries()].map(([k, count]) => ({ k, count })).sort((a, b) => b.count - a.count).slice(0, limit);
+    };
+    return {
+      online,
+      today: todayVisits.length,
+      uniqueToday: new Set(todayVisits.map((v) => v.visitor)).size,
+      lastHour: visits.filter((v) => now - Date.parse(v.at) < 3600000).length,
+      total: visits.length,
+      range: { from, to, visits: rangeVisits },
+      hourly,
+      daily,
+      regDaily,
+      byCountry: tally("country", "??", 30),
+      byCity: tally("city", "অজানা", 60),
+      recent: visits
+        .slice()
+        .sort((a, b) => (a.at < b.at ? 1 : -1))
+        .slice(0, 30)
+        .map((v) => ({ at: v.at, country: v.country, region: v.region, city: v.city, path: v.path })),
+    };
+  },
   site: async () => ({
     mode: "demo",
     event: { ...state.event, photoRequired: true },
@@ -516,6 +643,24 @@ export const demo = {
         if (i >= 0) state.albums[i] = obj;
         else state.albums.push(obj);
         result = obj;
+      } else if (action === "album.media.add") {
+        // R49: সার্ভারে মার্জ — অন্য অ্যাডমিনের যোগ করা ছবি কখনো হারায় না
+        const alb = (state.albums || []).find((x) => x.id === payload.id);
+        if (!alb) throw new AppError("অ্যালবাম পাওয়া যায়নি।", 404);
+        const existing = new Set((alb.media || []).map((m) => m.url));
+        const fresh = (payload.media || [])
+          .filter((m) => !existing.has(m.url))
+          .map((m) => ({ ...m, id: m.id || randomUUID() }));
+        if ((alb.media || []).length + fresh.length > 40)
+          throw new AppError("একটি অ্যালবামে সর্বোচ্চ ৪০টি ছবি/ভিডিও রাখা যায়।", 400);
+        alb.media = [...(alb.media || []), ...fresh];
+        result = alb;
+      } else if (action === "album.media.remove") {
+        const alb = (state.albums || []).find((x) => x.id === payload.id);
+        if (!alb) throw new AppError("অ্যালবাম পাওয়া যায়নি।", 404);
+        const gone = new Set(payload.urls || []);
+        alb.media = (alb.media || []).filter((m) => !gone.has(m.url));
+        result = alb;
       } else if (action === "album.delete") {
         state.albums = (state.albums || []).filter((x) => x.id !== payload.id);
       } else if (

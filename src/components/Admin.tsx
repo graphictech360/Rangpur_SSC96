@@ -27,6 +27,7 @@ import {
   Ticket,
   Menu,
   BarChart3,
+  Activity,
   ListChecks,
   GripVertical,
   ArrowUp,
@@ -73,6 +74,7 @@ import {
 import RegistrationForm from "./RegistrationForm";
 import NotificationBell from "./NotificationBell";
 import Reports from "./Reports";
+import AnalyticsPanel from "./Analytics";
 import AlbumManager from "./Albums";
 import ExpenseSheet from "./Finance";
 import TeamManager from "./Team";
@@ -132,6 +134,7 @@ const FORM_TEXT_KEYS: { key: string; label: string; hint: string }[] = [
 
 const tabs = [
   ["overview", "এক নজরে", LayoutDashboard],
+  ["analytics", "ভিজিটর অ্যানালিটিক্স", Activity],
   ["reports", "রিপোর্ট ও হিসাব", BarChart3],
   ["participants", "বন্ধু ও নিবন্ধন", Users],
   ["payments", "পেমেন্ট যাচাই", CreditCard],
@@ -230,6 +233,8 @@ export default function Admin({
     // খরচের খাতা ট্যাব: "expenses" বা "donations" — যেকোনোটি থাকলেই দেখা যায়
     if (key === "expenses")
       return held.includes("expenses") || held.includes("donations");
+    // R49: ভিজিটর অ্যানালিটিক্স — টিম ও অনুমতিতে আলাদা করে দেওয়া যায়
+    if (key === "analytics") return held.includes("analytics");
     return held.includes(key);
   };
   const visibleTabs = tabs.filter(([key]) => allowedTab(key));
@@ -304,7 +309,9 @@ export default function Admin({
   };
   // R44: পেমেন্ট নম্বর টেনে (বা তীর-বোতামে) সাজানো — নতুন ক্রম account.save দিয়েই সেভ হয়
   const reorderAccounts = async (fromId: string, toIndex: number) => {
-    const list = (data?.accounts || []).slice().sort((a, b) => a.order - b.order);
+    const list = (data?.accounts || [])
+      .filter((x) => x.active !== false)
+      .sort((a, b) => a.order - b.order);
     const from = list.findIndex((x) => x.id === fromId);
     if (from < 0 || toIndex < 0 || toIndex >= list.length || from === toIndex) return;
     const moved = list.splice(from, 1)[0];
@@ -323,7 +330,9 @@ export default function Admin({
     }
   };
   const dropAccount = async (targetId: string) => {
-    const list = (data?.accounts || []).slice().sort((a, b) => a.order - b.order);
+    const list = (data?.accounts || [])
+      .filter((x) => x.active !== false)
+      .sort((a, b) => a.order - b.order);
     const to = list.findIndex((x) => x.id === targetId);
     const id = dragId;
     setDragId("");
@@ -474,6 +483,11 @@ export default function Admin({
   const active = data?.registrations.filter((r) => !r.archivedAt) || [],
     pending = active.filter((r) => r.status === "pending"),
     approved = active.filter((r) => r.status === "approved");
+  // R54: প্রত্যাখ্যাত/বাতিল নিবন্ধন আসল নিবন্ধন নয় — "এক নজরে"-র মোটে ধরা হয় না
+  const validRegs = active.filter(
+      (r) => r.status === "pending" || r.status === "approved",
+    ),
+    rejectedRegs = active.filter((r) => r.status === "rejected");
   const checked = approved.filter((r) => r.checkedInAt),
     income = approved.reduce((a, r) => a + r.total, 0);
   const filtered = (data?.registrations || []).filter((r) => {
@@ -699,8 +713,8 @@ export default function Admin({
                     <div className="admin-stats">
                       <Stat
                         label="মোট নিবন্ধন"
-                        value={bn(active.length)}
-                        detail={`পরিবারসহ ${bn(active.reduce((a, r) => a + 1 + r.spouse + r.children + (r.guests || 0), 0))} জন`}
+                        value={bn(validRegs.length)}
+                        detail={`পরিবারসহ ${bn(validRegs.reduce((a, r) => a + 1 + r.spouse + r.children + (r.guests || 0), 0))} জন${rejectedRegs.length ? ` · প্রত্যাখ্যাত ${bn(rejectedRegs.length)}টি গণনার বাইরে` : ""}`}
                         icon={<Users />}
                         color="green"
                       />
@@ -1076,6 +1090,8 @@ export default function Admin({
                     />
                   </>
                 )}
+                {/* R46: ভিজিটর অ্যানালিটিক্স — রিয়েলটাইম, পেজ রিলোড ছাড়া */}
+                {tab === "analytics" && <AnalyticsPanel />}
                 {tab === "schedule" && (
                   <>
                     {/* R44: পুরো সময়সূচি সেকশন লুকানো/দেখানো — প্রস্তুত না হওয়া পর্যন্ত দর্শকদের থেকে আড়ালে রাখা যায় */}
@@ -1225,8 +1241,9 @@ export default function Admin({
                       সিরিয়ালে সাজান — নিবন্ধন পেজে একই ক্রমে দেখা যাবে।
                     </p>
                     <div className="account-editor-grid">
+                      {/* R44ফিক্স: মুছে ফেলা নম্বর এখানে নয় — নিচের আলাদা অংশে */}
                       {data.accounts
-                        .slice()
+                        .filter((a) => a.active !== false)
                         .sort((a, b) => a.order - b.order)
                         .map((a, idx, sorted) => (
                           <article
@@ -1306,8 +1323,8 @@ export default function Admin({
                                   requestRemove(
                                     "account.delete",
                                     a.id,
-                                    "নম্বরটি নিষ্ক্রিয় করবেন?",
-                                    "নতুন নিবন্ধনে নম্বরটি আর দেখাবে না। পুরোনো পেমেন্টের রেকর্ড অপরিবর্তিত থাকবে।",
+                                    "নম্বরটি মুছে ফেলবেন?",
+                                    "নম্বরটি তালিকা থেকে সরে নিচের “মুছে ফেলা নম্বর” অংশে যাবে — নিবন্ধন পেজে আর দেখাবে না। পুরোনো পেমেন্টের হিসাব ঠিক থাকবে, চাইলে পরে ফিরিয়ে আনতে পারবেন।",
                                   )
                                 }
                               >
@@ -1317,6 +1334,40 @@ export default function Admin({
                           </article>
                         ))}
                     </div>
+                    {/* মুছে ফেলা নম্বর: পেজে দেখানো হয় না — এক ক্লিকে ফিরিয়ে আনা যায় */}
+                    {data.accounts.some((a) => a.active === false) && (
+                      <details className="deleted-accounts">
+                        <summary>
+                          <Trash2 size={15} /> মুছে ফেলা নম্বর (
+                          {data.accounts.filter((a) => a.active === false).length}
+                          ) — নিবন্ধন পেজে দেখানো হয় না
+                        </summary>
+                        <div className="deleted-account-list">
+                          {data.accounts
+                            .filter((a) => a.active === false)
+                            .sort((a, b) => a.order - b.order)
+                            .map((a) => (
+                              <div className="deleted-account-row" key={a.id}>
+                                <span className="account-provider">
+                                  {a.provider === "bkash" ? "◈ bKash" : "◉ Nagad"}
+                                </span>
+                                <b>{a.name}</b>
+                                <span className="deleted-account-mobile">{a.mobile}</span>
+                                <button
+                                  className="button button-outline"
+                                  onClick={() => save("account.save", { ...a, active: true })}
+                                >
+                                  ফিরিয়ে আনুন
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                        <p className="deleted-account-note">
+                          পুরোনো পেমেন্টের হিসাব ঠিক রাখতে নম্বর স্থায়ীভাবে মুছে ফেলা হয়
+                          না — “ফিরিয়ে আনুন” চাপলেই আবার নিবন্ধন পেজে দেখা যাবে।
+                        </p>
+                      </details>
+                    )}
                   </>
                 )}
                 {tab === "form" && (
@@ -2000,6 +2051,7 @@ export default function Admin({
           <EntityEditor
             editor={editor}
             accounts={data.accounts}
+            formFields={data.formFields || []}
             onSave={save}
             onClose={() => setEditor(null)}
           />
@@ -2171,10 +2223,10 @@ function RegistrationDetail({
       </div>
       <div className="detail-data-grid">
         {[
-          ["মোবাইল", r.participant.mobile],
-          ["বর্তমান অবস্থান", r.participant.location],
-          ["এসএসসি রোল", r.participant.sscRoll],
-          ["এসএসসি রেজিস্ট্রেশন", r.participant.sscRegistration || "—"],
+          [fields.find((f) => f.key === "mobile")?.label || "মোবাইল", r.participant.mobile],
+          [fields.find((f) => f.key === "location")?.label || "বর্তমান অবস্থান", r.participant.location],
+          [fields.find((f) => f.key === "ssc_roll")?.label || "এসএসসি রোল", r.participant.sscRoll],
+          [fields.find((f) => f.key === "ssc_registration")?.label || "এসএসসি রেজিস্ট্রেশন", r.participant.sscRegistration || "—"],
           ["মোট সদস্য", `${bn(1 + r.spouse + r.children + (r.guests || 0))} জন`],
           ["পরিবার", `সঙ্গী ${bn(r.spouse)} · শিশু ${bn(r.children)}${(r.guests || 0) > 0 ? ` · অতিথি ${bn(r.guests || 0)}` : ""}`],
           ["টি-শার্ট", r.participant.tshirt],

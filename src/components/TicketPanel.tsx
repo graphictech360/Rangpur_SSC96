@@ -38,6 +38,9 @@ export default function TicketPanel({
   site: Site;
   initialKey?: string;
 }) {
+  // R45: টিকিটের তথ্য-লেবেল অ্যাডমিনের ফর্ম-ঘরের নাম অনুযায়ী (না পেলে আগের লেখা)
+  const fieldLabel = (key: string, fallback: string) =>
+    (site.formFields || []).find((f) => f.key === key)?.label || fallback;
   const stored = savedTickets();
   const [key, setKey] = useState(initialKey || stored[0]?.key || "");
   const [input, setInput] = useState(""),
@@ -215,13 +218,15 @@ export default function TicketPanel({
               <h3>
                 {registration.status === "pending"
                   ? "আর একটু অপেক্ষা, বন্ধু!"
-                  : "পেমেন্ট আবার যাচাই করতে হবে"}
+                  : "দুঃখিত বন্ধু, তোমার নিবন্ধনটি ভুল।"}
               </h3>
               <p>
                 {registration.status === "pending"
-                  ? "তোমার তথ্য জমা হয়েছে। আয়োজকেরা পেমেন্ট যাচাই করে অনুমোদন দিলে এখানে QR টিকিট পাওয়া যাবে।"
-                  : registration.payment.reason ||
-                    "বিস্তারিত জানতে আয়োজকদের সঙ্গে যোগাযোগ করো।"}
+                  ? "তোমার তথ্য জমা হয়েছে। সাধারণত ২৪ ঘণ্টার মধ্যে আয়োজকেরা পেমেন্ট যাচাই করেন — অনুমোদনের সাথে সাথে QR টিকিট নিজে থেকেই এখানে চলে আসবে।"
+                  : "অনুগ্রহ করে সঠিকভাবে চেষ্টা করো।" +
+                    (registration.payment.reason
+                      ? ` কারণ: ${registration.payment.reason}`
+                      : " বিস্তারিত জানতে আয়োজকদের সঙ্গে যোগাযোগ করো।")}
               </p>
               <div className="pending-details">
                 <div>
@@ -352,17 +357,30 @@ export default function TicketPanel({
                           ` · অতিথি ${bn(registration.guests || 0)}`}
                       </p>
                       <div className="receipt-fine-details">
-                        <span>এসএসসি রোল: {bn(registration.participant.sscRoll)}</span>
+                        {/* R45: লেবেলগুলো অ্যাডমিনের “নিবন্ধন ফর্ম” ট্যাবের নাম থেকেই আসে (যেমন থানা/জেলা) */}
+                        <span>
+                          {fieldLabel("ssc_roll", "এসএসসি রোল")}:{" "}
+                          {bn(registration.participant.sscRoll)}
+                        </span>
                         {registration.participant.sscRegistration ? (
                           <span>
-                            রেজিস্ট্রেশন: {bn(registration.participant.sscRegistration)}
+                            {fieldLabel("ssc_registration", "রেজিস্ট্রেশন")}:{" "}
+                            {bn(registration.participant.sscRegistration)}
                           </span>
                         ) : null}
-                        <span>বর্তমান অবস্থান: {registration.participant.location}</span>
-                        <span>মোবাইল: {bn(registration.participant.mobile)}</span>
-                        <span>টি-শার্ট: {registration.participant.tshirt}</span>
+                        <span>
+                          {fieldLabel("location", "বর্তমান অবস্থান")}:{" "}
+                          {registration.participant.location}
+                        </span>
+                        <span>
+                          {fieldLabel("mobile", "মোবাইল")}:{" "}
+                          {bn(registration.participant.mobile)}
+                        </span>
+                        <span>
+                          {fieldLabel("tshirt", "টি-শার্ট")}: {registration.participant.tshirt}
+                        </span>
                         {registration.food && (
-                          <span>খাবার: {registration.food}</span>
+                          <span>{fieldLabel("food", "খাবার")}: {registration.food}</span>
                         )}
                         {Object.entries(registration.answers || {})
                           .filter(([, v]) => String(v || "").trim() !== "")

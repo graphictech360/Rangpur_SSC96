@@ -97,8 +97,8 @@ const esc = (s) =>
     .replace(/"/g, "&quot;");
 
 // অতিরিক্ত ঘরের বাংলা নাম মেইলে পাঠানোর সময়: registration.__fields থাকলে সেটি, নইলে কী-ই দেখানো হয়
-const fieldLabel = (key, registration) =>
-  (registration?.fields || []).find((f) => f.key === key)?.label || key;
+const fieldLabel = (key, registration, fallback) =>
+  (registration?.fields || []).find((f) => f.key === key)?.label || fallback || key;
 
 const row = (label, value) =>
   value === "" || value === undefined || value === null
@@ -133,10 +133,10 @@ export function registrationEmail({ site, registration, registrationId }) {
 
       <table style="width:100%;border-collapse:collapse;border-top:1px solid #eee6d4;border-bottom:1px solid #eee6d4;margin-bottom:18px">
         ${row("টিকিট নম্বর", registration.ticketNumber)}
-        ${row("স্কুল", p.school)}
-        ${row("এসএসসি রোল", p.sscRoll)}
-        ${row("মোবাইল", p.mobile)}
-        ${row("বর্তমান অবস্থান", p.location)}
+        ${row(fieldLabel("school", registration, "স্কুল"), p.school)}
+        ${row(fieldLabel("ssc_roll", registration, "এসএসসি রোল"), p.sscRoll)}
+        ${row(fieldLabel("mobile", registration, "মোবাইল"), p.mobile)}
+        ${row(fieldLabel("location", registration, "বর্তমান অবস্থান"), p.location)}
         ${row("পরিবার", `${bn(registration.spouse || 0)} জন জীবনসঙ্গী · ${bn(registration.children || 0)} জন শিশু`)}
         ${row("খাবারের পছন্দ", registration.food)}
         ${row("টি-শার্ট", p.tshirt)}

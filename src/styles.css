@@ -1685,6 +1685,88 @@ summary:focus-visible {
   font-size: 11.67px;
   color: #9a9d81;
 }
+/* R56: QR-পেমেন্ট বাক্স — payment_qr সেকশন চালু থাকলে ফর্মে কেবল এটিই দেখা যায় */
+.payment-qr-box {
+  border: 1px dashed #d7dbbf;
+  border-radius: 10px;
+  background: #fffdf4;
+  padding: 16px 15px 14px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.payment-qr-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  margin-bottom: 12px;
+}
+.payment-qr-badge {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--green, #234e40);
+  color: #f6edd8;
+  font-family: "Outfit", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
+  letter-spacing: 1px;
+}
+.payment-qr-head b {
+  display: block;
+  font-size: 17.67px;
+  color: var(--ink, #203d36);
+}
+.payment-qr-head small {
+  display: block;
+  font-size: 13.67px;
+  color: #74816b;
+  line-height: 1.55;
+  margin-top: 2px;
+}
+.payment-qr-image {
+  width: min(248px, 72vw);
+  height: auto;
+  aspect-ratio: 1;
+  border: 1px solid #e3e0cb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+  display: block;
+  margin: 0 auto;
+}
+.payment-qr-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 12px auto 2px;
+  padding: 6px 15px;
+  border-radius: 999px;
+  background: #f3ead2;
+  color: var(--ink, #203d36);
+}
+.payment-qr-amount span {
+  font-size: 13.67px;
+  color: #7c7a5e;
+}
+.payment-qr-amount b {
+  font-family: "Outfit", sans-serif;
+  font-size: 21.67px;
+  font-weight: 600;
+}
+.payment-qr-note {
+  margin: 11px 2px 0;
+  font-size: 13.67px;
+  line-height: 1.7;
+  color: #6d7a64;
+  background: #f0f4e4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: start;
+}
 .payment-status-display {
   display: flex;
   align-items: center;
@@ -9173,3 +9255,224 @@ table {
   align-items: flex-start;
 }
 .accordion-stack .accordion-order { width: 100%; max-width: 220px; }
+
+/* R44ফিক্স: মুছে ফেলা পেমেন্ট নম্বরের আলাদা অংশ */
+.deleted-accounts {
+  margin-top: 18px;
+  border: 1px dashed #d6c9a8;
+  border-radius: 14px;
+  background: #faf6ea;
+  padding: 4px 16px 10px;
+}
+.deleted-accounts summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px 0;
+  font-size: 1.05rem;
+  color: #8a6d3b;
+  list-style: none;
+}
+.deleted-accounts summary::-webkit-details-marker { display: none; }
+.deleted-account-list { display: flex; flex-direction: column; gap: 8px; }
+.deleted-account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #eee3c8;
+  border-radius: 10px;
+  padding: 9px 13px;
+  opacity: 0.88;
+}
+.deleted-account-row b { font-size: 1.05rem; }
+.deleted-account-mobile { color: var(--muted, #6b7280); }
+.deleted-account-row .button { margin-left: auto; padding: 6px 13px; }
+.deleted-account-note {
+  margin: 10px 2px 6px;
+  font-size: 0.98rem;
+  color: #8a6d3b;
+}
+@media (max-width: 599px) {
+  .deleted-account-row .button { margin-left: 0; width: 100%; justify-content: center; }
+}
+
+/* ═══ R46: ভিজিটর অ্যানালিটিক্স ═══ */
+.analytics-panel { display: flex; flex-direction: column; gap: 16px; }
+.ana-live-bar {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;
+  border-radius: 12px; padding: 10px 14px; font-size: 1.02rem;
+}
+.ana-live-bar small { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: #4d7c5f; }
+.ana-live-dot { width: 9px; height: 9px; border-radius: 50%; background: #16a34a; animation: anaPulse 1.6s infinite; }
+@keyframes anaPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(22,163,74,.45); } 55% { box-shadow: 0 0 0 7px rgba(22,163,74,0); } }
+.ana-stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 13px; }
+.ana-stat { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 15px 16px !important; }
+.ana-stat b { font-size: 1.85rem; line-height: 1.1; font-family: "Outfit", sans-serif; }
+.ana-stat small { color: var(--muted, #6b7280); font-size: 0.98rem; }
+.ana-stat-icon { color: #2f7a52; }
+.ana-stat-live b { color: #16a34a; }
+.ana-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.ana-card-title { display: flex; align-items: center; gap: 7px; margin: 0 0 13px; font-size: 1.1rem; }
+.ana-bars { display: flex; align-items: flex-end; gap: 3px; height: 150px; }
+.ana-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.ana-bar-col small { font-size: 0.72rem; color: var(--muted,#6b7280); white-space: nowrap; margin-top: 4px; height: 14px; }
+.ana-bar-count { font-size: 0.72rem; color: #4b5563; height: 14px; }
+.ana-bar { width: 100%; max-width: 26px; border-radius: 4px 4px 0 0; transition: height .4s ease; }
+.ana-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.ana-rank li { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 42px; align-items: center; gap: 10px; }
+.ana-rank-name { display: flex; align-items: center; gap: 7px; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ana-rank-name i { font-style: normal; }
+.ana-rank-track { background: #f1ead6; border-radius: 99px; height: 9px; overflow: hidden; }
+.ana-rank-track span { display: block; height: 100%; background: #2f7a52; border-radius: 99px; transition: width .4s ease; }
+.ana-rank b { text-align: right; }
+.ana-table-wrap { overflow-x: auto; }
+.ana-table { width: 100%; border-collapse: collapse; font-size: 0.98rem; }
+.ana-table th { text-align: left; color: var(--muted,#6b7280); font-weight: 600; padding: 6px 10px; border-bottom: 1px solid #eee3c8; }
+.ana-table td { padding: 7px 10px; border-bottom: 1px solid #f5efdd; }
+.ana-table code { background: #f7f2e3; border-radius: 5px; padding: 1px 6px; font-size: 0.9em; }
+.ana-empty { color: var(--muted,#6b7280); margin: 8px 0; }
+.ana-note { color: var(--muted,#6b7280); font-size: 0.95rem; margin: 0; }
+@media (max-width: 900px) { .ana-stat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .ana-grid-2 { grid-template-columns: 1fr; } }
+@media (max-width: 599px) { .ana-bars { height: 120px; } .ana-live-bar small { margin-left: 0; width: 100%; } }
+
+/* R46: না-পড়া নোটিফিকেশন — পড়ার আগ পর্যন্ত বোল্ড ও স্পষ্ট হাইলাইট */
+.notif-list li.notif-new { background: #fff7df; border-left: 3px solid #d44317; }
+.notif-list li.notif-new .notif-name { font-weight: 700; }
+.notif-list li.notif-new .notif-name small { font-weight: 500; color: #8a6d3b; }
+
+/* R46: মোবাইলে টিকিটের QR অনেক বড় — গেটে স্ক্যান সহজ হয় */
+@media (max-width: 700px) {
+  .receipt-qr { width: min(230px, 64vw); padding: 10px 10px 0; }
+  .receipt-qr > svg { width: 100%; height: auto; }
+}
+@media (max-width: 375px) {
+  .receipt-qr { width: min(210px, 70vw); }
+  .receipt-qr > svg { width: 100%; height: auto; }
+}
+
+/* ═══ R50: অ্যানালিটিক্স — এক্সপ্যান্ডেবল তালিকা + রেঞ্জ বাছাই ═══ */
+.ana-expand {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 11px; padding: 8px 10px;
+  background: #f7f2e3; border: 1px dashed #d8c9a0; border-radius: 10px;
+  color: #6b5b33; font-size: 0.98rem; font-family: inherit; cursor: pointer;
+  transition: background .15s ease;
+}
+.ana-expand:hover { background: #f1e8d0; }
+.ana-range-sum {
+  margin-left: auto; font-size: 0.9rem; font-weight: 500;
+  color: #8a6d3b; background: #fdf7e6; border-radius: 99px; padding: 3px 11px;
+}
+.ana-range-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; }
+.ana-range-chip {
+  padding: 6px 13px; border-radius: 99px; border: 1px solid #d8c9a0;
+  background: #fffdf6; color: #5f5433; font-size: 0.95rem; font-family: inherit;
+  cursor: pointer; transition: all .15s ease;
+}
+.ana-range-chip:hover { border-color: #b58732; }
+.ana-range-chip.on { background: #2f7a52; border-color: #2f7a52; color: #fff; }
+.ana-custom-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 12px; }
+.ana-custom-row label {
+  display: flex; align-items: center; gap: 7px; font-size: 0.95rem; color: #6b5b33;
+}
+.ana-custom-row input[type="date"] {
+  padding: 6px 9px; border: 1px solid #d8c9a0; border-radius: 9px;
+  background: #fffdf6; font-family: inherit; font-size: 0.95rem; color: #3d3520;
+}
+.ana-bars-dense { gap: 1px; }
+.ana-bars-dense .ana-bar { border-radius: 2px 2px 0 0; }
+.ana-bars-dense .ana-bar-col small { font-size: 0.66rem; }
+@media (max-width: 599px) {
+  .ana-range-sum { margin-left: 0; width: 100%; text-align: center; }
+  .ana-custom-row { flex-direction: column; align-items: flex-start; }
+}
+
+/* ═══ R51: নিবন্ধনের উত্তর এলে টিকিট-আইকনে লাল ডট ═══ */
+.ticket-nav { position: relative; }
+.ticket-alert-dot {
+  position: absolute; top: -4px; right: -4px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #d44317; border: 2px solid #fbf6eb;
+  animation: ticketDotPulse 1.5s infinite;
+}
+@keyframes ticketDotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 67, 23, 0.45); }
+  55% { box-shadow: 0 0 0 6px rgba(212, 67, 23, 0); }
+}
+
+/* ── R52: অ্যানালিটিক্সে ২-রঙা নিবন্ধন-বার + রিপোর্টের তালিকা-ফিল্টার ── */
+.ana-bar-duo { flex: 1; min-height: 0; width: 100%; max-width: 30px; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.ana-bar-duo .ana-bar { width: 50%; max-width: 13px; }
+.ana-legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 2px 0 8px; font-size: 0.86rem; color: var(--muted, #6b7280); }
+.ana-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ana-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.report-dl-filter { display: inline-flex; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; color: var(--ink, #3d2c1f); }
+.report-dl-filter select { padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line, #e3d5c0); background: #fffdf7; font: inherit; }
+
+/* ── R54: অ্যাডমিন-বদলানো বাংলা হিরো-শিরোনাম — বাংলা ফন্টে, রেসপনসিভ মাপে ── */
+.hero-title .custom-title {
+  font-family: "Noto Sans Bengali", "Outfit", sans-serif;
+  letter-spacing: 0;
+  font-weight: 800;
+  font-size: clamp(42px, 9vw, 80px);
+  line-height: 1.28;
+  animation: arrive 0.75s 0.12s both;
+}
+
+/* ── R55: কাস্টম হিরো-শিরোনামের ক্রিয়েটিভ রূপ — ব্র্যান্ডের সবুজ/কমলা/হলুদে ── */
+.hero-title .ct { letter-spacing: -0.5px; }
+.ct .ct-word {
+  display: inline-block;
+  position: relative;
+  margin-right: 0.26em;
+  animation: arrive 0.7s both;
+}
+/* সংখ্যা (৯৬, 2027...) — কমলা, নিচে সেই হাতে-আঁকা হলুদ দাগ */
+.ct .ct-num { color: var(--coral); }
+.ct .ct-num svg {
+  position: absolute;
+  left: -3%;
+  bottom: -0.12em;
+  width: 106%;
+  height: 0.17em;
+  stroke: var(--yellow);
+  stroke-width: 6;
+  fill: none;
+  stroke-linecap: round;
+}
+/* "উদ্ধৃত" অংশ — সেরিফ-ইটালিক, পেছনে হলুদ মার্কার-হাইলাইট */
+.ct .ct-quote {
+  font-family: "DM Serif Display", "Noto Sans Bengali", serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.9em;
+  background-image: linear-gradient(transparent 64%, rgba(241, 207, 88, 0.6) 64%, rgba(241, 207, 88, 0.6) 92%, transparent 92%);
+  border-radius: 4px;
+  padding: 0 0.06em;
+}
+.ct .ct-quote.ct-num { background-image: none; }
+/* & / ও — কমলা সেরিফ, একটু বড় */
+.ct .ct-amp {
+  color: var(--coral);
+  font-family: "DM Serif Display", serif;
+  font-style: italic;
+  font-size: 1.04em;
+}
+/* প্রথম শব্দের পাশে ঘূর্ণমান ✳ — আসল শিরোনামের মোটিফ */
+.ct .ct-spark {
+  color: var(--coral);
+  font-size: 0.42em;
+  position: absolute;
+  top: -0.25em;
+  right: -0.72em;
+  animation: spark-turn 18s linear infinite;
+}
+/* শেষের কমলা ফুলস্টপ */
+.ct .ct-period { color: var(--coral); }
+@media (max-width: 700px) {
+  .ct .ct-spark { font-size: 0.4em; right: -0.65em; }
+}

@@ -14,6 +14,7 @@ import type {
   AdminData,
   FestivalEvent,
   Fees,
+  FormField,
   PaymentAccount,
   Registration,
   Section,
@@ -68,14 +69,19 @@ function TextField({
 export function EntityEditor({
   editor,
   accounts,
+  formFields,
   onSave,
   onClose,
 }: {
   editor: EditorState;
   accounts: PaymentAccount[];
+  formFields?: FormField[];
   onSave: SaveMutation;
   onClose: () => void;
 }) {
+  // R45: অংশগ্রহণকারী-এডিটরের লেবেল অ্যাডমিনের ফর্ম-ঘরের নাম অনুযায়ী (যেমন থানা/জেলা)
+  const fl = (key: string, fallback: string) =>
+    (formFields || []).find((f) => f.key === key)?.label || fallback;
   const [form, setForm] = useState<Record<string, any>>({ ...editor.data }),
     [busy, setBusy] = useState(false),
     [photoBusy, setPhotoBusy] = useState(false),
@@ -402,15 +408,15 @@ export function EntityEditor({
             </div>
           </div>
           <div className="field-grid">
-            {field("name", "নাম")}
-            {field("mobile", "মোবাইল", "tel")}
+            {field("name", fl("name", "নাম"))}
+            {field("mobile", fl("mobile", "মোবাইল"), "tel")}
           </div>
-          {field("school", "স্কুলের নাম")}
+          {field("school", fl("school", "স্কুলের নাম"))}
           <div className="field-grid">
-            {field("sscRoll", "এসএসসি রোল")}
-            {field("sscRegistration", "এসএসসি রেজিস্ট্রেশন", "text", false)}
+            {field("sscRoll", fl("ssc_roll", "এসএসসি রোল"))}
+            {field("sscRegistration", fl("ssc_registration", "এসএসসি রেজিস্ট্রেশন"), "text", false)}
           </div>
-          {field("location", "বর্তমান অবস্থান")}
+          {field("location", fl("location", "বর্তমান অবস্থান"))}
           <div className="field-grid">
             <label className="field">
               টি-শার্ট
@@ -709,6 +715,11 @@ export const participantEditor = (r: Registration): EditorState => ({
    হেডার (হিরো) থেকে ফুটার পর্যন্ত প্রতিটি সেকশন একটি ড্রপডাউন;
    খুললেই সেই সেকশনের সব লেখা/ছবি/ক্রম/দৃশ্যমানতা একসাথে সম্পাদনার ঘর। */
 const SECTION_LABELS: Record<string, { name: string; hint?: string }> = {
+  payment_qr: {
+    name: "QR পেমেন্ট (নিবন্ধন ফর্ম)",
+    hint:
+      "এই অংশটি “দেখানো হবে” অবস্থায় থাকলে নিবন্ধন ফর্মে শুধু QR স্ক্যান করে পেমেন্ট দেখা যায় — বিকাশ/নগদ নম্বরগুলো লুকানো থাকে। ছবির ঘরে QR কোডের ছবি, শিরোনামে অ্যাকাউন্টের নাম (যেমন: R A Farm Shop), উপশিরোনামে স্ক্যান করার নির্দেশনা, আর বিস্তারিত লেখায় ২৪-ঘণ্টার যাচাই-বার্তা লেখো। লুকিয়ে দিলে আগের বিকাশ/নগদ পদ্ধতি নিজে থেকেই ফিরে আসবে (তখন “পেমেন্ট অ্যাকাউন্ট” ট্যাব থেকে নম্বরগুলো আবার সক্রিয় করে নিও)।",
+  },
   hero: {
     name: "হেডার ব্যানার (হিরো)",
     hint: "ছবির ঘরে একাধিক লিংক দিলে (প্রতি লাইনে একটি) ব্যানারে ঘুরে ঘুরে দেখা যায়। বড় শিরোনাম, তারিখ ও ভেন্যু নিচের সবুজ অংশ থেকেই বদলানো যায় — “অনুষ্ঠান ও ফি” ট্যাবেও একই ঘর আছে।",

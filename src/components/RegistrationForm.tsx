@@ -78,6 +78,36 @@ export default function RegistrationForm({
     children * site.fees.child +
     guests * (guestFee ?? 0);
   const account = site.accounts.find((a) => a.id === accountId);
+  // R56: QR-পেমেন্ট মোড — "payment_qr" সেকশনটি দৃশ্যমান থাকলে ফর্মে কেবল QR দেখানো হয়,
+  // বিকাশ/নগদ নম্বর লুকানো থাকে। সেকশনটি লুকিয়ে দিলে আগের পদ্ধতি নিজে থেকেই ফিরে আসে।
+  const qrPay = (site.sections || []).find(
+    (s) => s.key === "payment_qr" && s.visible !== false && s.imageUrl?.trim(),
+  );
+  const qrImage = qrPay?.imageUrl.split("\n").map((l) => l.trim()).find(Boolean) || "";
+  const QR_NOTE_FALLBACK =
+    "নিবন্ধন শেষ করার পর আয়োজকেরা ২৪ ঘণ্টার মধ্যে তোমার পেমেন্ট যাচাই করবেন — অনুমোদনের সাথে সাথেই তোমার গোপন লিংকে QR টিকিট চলে আসবে।";
+  const qrNote = qrPay?.body?.trim() || QR_NOTE_FALLBACK;
+  // QR মোডে টাকাটা ভেতরে-ভেতরে কোন অ্যাকাউন্টের খাতায় জমা হবে —
+  // তালিকার প্রথম সক্রিয় অ্যাকাউন্ট (লাইভে: “R A Farm Shop (QR)”)
+  const firstActive = site.accounts
+    .filter((a) => a.active)
+    .sort((a, b) => a.order - b.order)[0];
+  const effectiveAccount = qrPay ? firstActive : account;
+  // R57: পেমেন্টের মাধ্যম (বিকাশ/নগদ/রকেট/ব্যাংক) — "payment_channel" ফর্ম-ফিল্ডটি
+  // থাকলে QR-মোডের পেমেন্ট ধাপে ড্রপডাউন দেখানো হয়; উত্তর answers-এ জমা হয়।
+  // ঘরটি ধাপ ১/২-এ কখনো দেখানো হয় না (নিচের ফিল্টার দেখো)।
+  const channelField = qrPay ? fld("payment_channel") : undefined;
+  const channelOptions = channelField?.options?.length
+    ? channelField.options
+    : ["বিকাশ", "নগদ", "রকেট", "ব্যাংক অ্যাকাউন্ট"];
+  const [channel, setChannel] = useState("");
+  const [bankName, setBankName] = useState("");
+  const channelIsBank = channel.includes("ব্যাংক");
+  const channelAnswer = channel
+    ? channelIsBank && bankName.trim()
+      ? `${channel} — ${bankName.trim()}`
+      : channel
+    : "";
   const update = (key: keyof Participant, value: string) =>
     setParticipant((p) => ({ ...p, [key]: value }));
   const onPickPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -135,9 +165,16 @@ export default function RegistrationForm({
         return "নিজের একটি ছবি দাও — টিকিটে তোমার ছবিই থাকবে, গেটে চেনা সহজ হবে।";
     }
     if (step === 2) {
-      if (!account) return "পেমেন্ট গ্রহণকারীর নম্বর বেছে নাও।";
+      if (!effectiveAccount)
+        return qrPay
+          ? "পেমেন্ট নেওয়ার ব্যবস্থা এখনো চালু হয়নি — আয়োজকদের জানাও।"
+          : "পেমেন্ট গ্রহণকারীর নম্বর বেছে নাও।";
       if (!validMobile(senderMobile))
         return "যে নম্বর থেকে টাকা পাঠিয়েছ, সেটি সঠিকভাবে দাও।";
+      if (channelField && !channel)
+        return "কোন মাধ্যমে পেমেন্ট করেছ, সেটি বেছে নাও।";
+      if (channelField && channelIsBank && !bankName.trim())
+        return "ব্যাংকের নামটি লিখে দাও।";
       if (!/^[A-Za-z0-9-]{5,64}$/.test(transactionId.trim()))
         return "সঠিক ট্রানজেকশন আইডি দাও।";
       if (!consent) return "তথ্য ও পেমেন্ট যাচাইয়ের শর্তে সম্মতি দাও।";
@@ -171,7 +208,7 @@ export default function RegistrationForm({
       // মূল ঘরগুলো (নাম, ছবি, টি-শার্ট…) ধাপে ধাপেই যাচাই হয়ে গেছে;
       // এখানে শুধু অ্যাডমিনের যোগ করা অতিরিক্ত ঘরগুলোর উত্তর দেখা হয়।
       const missing = (site.formFields || []).find(
-        (f) => !f.isBase && f.required && !String(answers[f.key] || "").trim(),
+        (f) => !f.isBase && f.key !== "payment_channel" && f.required && !String(answers[f.key] || "").trim(),
       );
       if (missing) throw new Error(`ঘরটি পূরণ করুন: ${missing.label}`);
       const result = await post<{
@@ -182,12 +219,16 @@ export default function RegistrationForm({
         spouse,
         children,
         guests,
-        answers: Object.fromEntries(
-          Object.entries(answers).filter(([, v]) => v !== ""),
-        ),
+        answers: {
+          ...Object.fromEntries(
+            Object.entries(answers).filter(([, v]) => v !== ""),
+          ),
+          // R57: পেমেন্টের মাধ্যম (QR-মোডে বাছাই করা হলে)
+          ...(channelAnswer ? { payment_channel: channelAnswer } : {}),
+        },
         payment: {
-          provider,
-          accountId,
+          provider: effectiveAccount?.provider || provider,
+          accountId: effectiveAccount?.id || accountId,
           senderMobile,
           transactionId: transactionId.trim(),
           amount: total,
@@ -490,8 +531,9 @@ export default function RegistrationForm({
           জমা হয়েছে!
         </h3>
         <p>
-          এখন আয়োজকেরা পেমেন্ট যাচাই করবেন। অনুমোদনের পর এই লিংকেই QR টিকিট
-          পাওয়া যাবে।
+          {qrPay
+            ? qrNote
+            : "এখন আয়োজকেরা পেমেন্ট যাচাই করবেন। অনুমোদনের পর এই লিংকেই QR টিকিট পাওয়া যাবে।"}
         </p>
         <div className="success-receipt">
           <span>নিবন্ধন নম্বর</span>
@@ -644,7 +686,7 @@ export default function RegistrationForm({
               </div>
               <div className="field-grid">
                 {fields
-                  .filter((f) => (f.step ?? 1) === 1)
+                  .filter((f) => (f.step ?? 1) === 1 && f.key !== "payment_channel")
                   .map((f) => renderField(f))}
               </div>
               <div className="batch-lock">
@@ -659,7 +701,7 @@ export default function RegistrationForm({
                 <span>{text("step2.title", "০২ / কারা আসছো একসাথে?")}</span>
               </div>
               {fields
-                .filter((f) => (f.step ?? 1) === 2)
+                .filter((f) => (f.step ?? 1) === 2 && f.key !== "payment_channel")
                 .map((f) => renderField(f))}
             </div>
           )}
@@ -688,6 +730,32 @@ export default function RegistrationForm({
                   </div>
                 </div>
               )}
+              {qrPay && (
+                <div className="payment-qr-box">
+                  <div className="payment-qr-head">
+                    <span className="payment-qr-badge">QR</span>
+                    <div>
+                      <b>{qrPay.title?.trim() || "QR স্ক্যান করে পেমেন্ট"}</b>
+                      <small>
+                        {qrPay.subtitle?.trim() ||
+                          "বিকাশ / নগদ / রকেট বা যেকোনো ব্যাংক অ্যাপ খুলে নিচের QR কোডটি স্ক্যান করো।"}
+                      </small>
+                    </div>
+                  </div>
+                  <img
+                    className="payment-qr-image"
+                    src={qrImage}
+                    alt={`${qrPay.title?.trim() || "পেমেন্ট"} QR কোড`}
+                  />
+                  <div className="payment-qr-amount">
+                    <span>পাঠাতে হবে</span>
+                    <b>৳ {money(total)}</b>
+                  </div>
+                  <p className="payment-qr-note">{qrNote}</p>
+                </div>
+              )}
+              {!qrPay && (
+              <>
               <div
                 className="payment-provider-switch"
                 role="group"
@@ -745,6 +813,8 @@ export default function RegistrationForm({
                   <small>এটি ব্যক্তিগত নম্বর। Payment নয়, Send Money।</small>
                 </div>
               )}
+              </>
+              )}
               <div className="field-grid">
                 <label className="field">
                   {text("payment.sender_mobile", "যে নম্বর থেকে টাকা পাঠিয়েছ")}{" "}
@@ -757,6 +827,39 @@ export default function RegistrationForm({
                     onChange={(e) => setSenderMobile(e.target.value)}
                   />
                 </label>
+                {channelField && (
+                  <label className="field">
+                    {channelField.label || "কোন মাধ্যমে পেমেন্ট করেছ"} <em>*</em>
+                    <select
+                      name="paymentChannel"
+                      aria-label="পেমেন্টের মাধ্যম"
+                      value={channel}
+                      onChange={(e) => {
+                        setChannel(e.target.value);
+                        if (!e.target.value.includes("ব্যাংক")) setBankName("");
+                      }}
+                    >
+                      <option value="">— বেছে নাও —</option>
+                      {channelOptions.map((o) => (
+                        <option value={o} key={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {channelField && channelIsBank && (
+                  <label className="field">
+                    কোন ব্যাংকের অ্যাকাউন্ট? <em>*</em>
+                    <input
+                      name="bankName"
+                      placeholder="যেমন: পূবালী ব্যাংক"
+                      maxLength={120}
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                    />
+                  </label>
+                )}
                 <label className="field">
                   {text("payment.transaction_id", "ট্রানজেকশন আইডি")} <em>*</em>
                   <input

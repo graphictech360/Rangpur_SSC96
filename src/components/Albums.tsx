@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -75,6 +75,7 @@ export default function AlbumManager({
           key={a.id}
           album={a}
           onSave={(x) => onSave("album.save", x)}
+          onAction={(action, payload) => onSave(action, payload)}
           onAskDelete={() => a.id && onAskDelete(a.id, a.title)}
           onMoveUp={() => swap(i, i - 1)}
           onMoveDown={() => swap(i, i + 1)}
@@ -93,6 +94,7 @@ function AlbumCard({
   album,
   isNew,
   onSave,
+  onAction,
   onCancel,
   onAskDelete,
   onMoveUp,
@@ -101,6 +103,8 @@ function AlbumCard({
   album: MemoryAlbum;
   isNew?: boolean;
   onSave: (a: MemoryAlbum) => Promise<unknown> | unknown;
+  /** R49: ছবি যোগ/বাদের মার্জ-অ্যাকশন — দুই অ্যাডমিন একসাথে কাজ করলেও কারও ছবি হারায় না */
+  onAction?: (action: string, payload: unknown) => Promise<unknown>;
   onCancel?: () => void;
   onAskDelete: () => void;
   onMoveUp?: () => void;
@@ -114,6 +118,12 @@ function AlbumCard({
   const [linkUrl, setLinkUrl] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // R49: অন্য অ্যাডমিন ছবি যোগ/বাদ দিলে রিফ্রেশের পর কার্ডটিও টাটকা হয় —
+  // তবে এখানে কিছু লেখা/বদলানো চলমান (dirty/busy) থাকলে হাত দেওয়া হয় না
+  useEffect(() => {
+    if (!dirty && !busy) setDraft({ ...album });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [album, dirty, busy]);
   const patch = (p: Partial<MemoryAlbum>) => {
     setDraft((d) => ({ ...d, ...p }));
     setDirty(true);
@@ -172,8 +182,17 @@ function AlbumCard({
       }
       if (added.length) {
         const next = { ...draft, media: [...(draft.media || []), ...added] };
-        setDraft(next);
-        await persist(next);
+        setDraft(next); // সাথে সাথে দেখা যায়
+        if (!isNew && draft.id && onAction) {
+          // R49: সার্ভারে মার্জ — বাসি তালিকা দিয়ে অন্যের ছবি মুছে যাওয়ার ভয় নেই
+          try {
+            await onAction("album.media.add", { id: draft.id, media: added });
+          } catch {
+            setDirty(true); // এরর-টোস্ট দেখানো হয়েছে; “সেভ করুন” দিয়ে আবার চেষ্টা
+          }
+        } else {
+          await persist(next);
+        }
       }
       if (failedCount)
         toast(
@@ -192,7 +211,15 @@ function AlbumCard({
     setDraft(next);
     setLinkKind(null);
     setLinkUrl("");
-    await persist(next);
+    if (!isNew && draft.id && onAction) {
+      try {
+        await onAction("album.media.add", { id: draft.id, media: [{ kind: linkKind, url }] });
+      } catch {
+        setDirty(true);
+      }
+    } else {
+      await persist(next);
+    }
   };
   const save = async () => {
     setBusy(true);
@@ -285,7 +312,20 @@ function AlbumCard({
               <button
                 title="মুছুন"
                 className="danger"
-                onClick={() => setMedia(media.filter((_, j) => j !== i))}
+                onClick={async () => {
+                  const next = media.filter((_, j) => j !== i);
+                  if (!isNew && draft.id && onAction) {
+                    // R49: সার্ভার থেকে ঠিক এই ছবিটিই বাদ যায় — বাকিরা অক্ষত
+                    setDraft((d) => ({ ...d, media: next }));
+                    try {
+                      await onAction("album.media.remove", { id: draft.id, urls: [m.url] });
+                    } catch {
+                      setDirty(true);
+                    }
+                  } else {
+                    setMedia(next);
+                  }
+                }}
               >
                 <Trash2 size={13} />
               </button>

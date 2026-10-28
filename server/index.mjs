@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -33,6 +33,8 @@ import {
   eventSchema,
   sectionSchema,
   albumSchema,
+  albumMediaAddSchema,
+  albumMediaRemoveSchema,
   canDo,
   scheduleSchema,
   accountSchema,
@@ -482,6 +484,76 @@ app.get(
   wrap(async (req, res) => {
     await auth(req, res, true);
     res.json(eventsSnapshot());
+  }),
+);
+// ── R46: ভিজিটর অ্যানালিটিক্স ──────────────────────────────────
+// পাবলিক পেজ খুললে একটি হালকা "ভিজিট" রেকর্ড হয় — দেশ/শহর Vercel-এর জিও-হেডার থেকে
+const visitLimit = rateLimit({
+  windowMs: 600000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "একটু পরে চেষ্টা করুন।" },
+});
+app.post(
+  "/api/visit",
+  visitLimit,
+  wrap(async (req, res) => {
+    const path = String(req.body?.path || "/").slice(0, 120);
+    // অ্যাডমিন/চেক-ইন পেজ গণনায় ধরা হয় না
+    if (/^\/(admin|check-in)/.test(path)) return res.json({ ok: true });
+    // R53: বট/ক্রলার (গুগল, ফেসবুক-লিংক-প্রিভিউ, মনিটর ইত্যাদি) আসল ভিজিটর নয় —
+    // এরা গণনায় ধরা হয় না; শুধু আসল ব্রাউজারের মানুষই অ্যানালিটিক্সে ওঠে।
+    const ua = String(req.get("user-agent") || "");
+    if (
+      !ua ||
+      /bot|crawl|spider|slurp|headless|lighthouse|facebookexternalhit|facebookcatalog|whatsapp|telegrambot|skypeuripreview|preview|puppeteer|playwright|phantomjs|python|curl\/|wget|axios|okhttp|go-http|java\/|monitor|uptime|pingdom|vercel|prerender/i.test(
+        ua,
+      )
+    )
+      return res.json({ ok: true });
+    const country = String(req.get("x-vercel-ip-country") || "").slice(0, 8);
+    const region = decodeURIComponent(
+      String(req.get("x-vercel-ip-country-region") || ""),
+    ).slice(0, 64);
+    const city = decodeURIComponent(
+      String(req.get("x-vercel-ip-city") || ""),
+    ).slice(0, 80);
+    // ভিজিটর-চিহ্ন: আইপি+ব্রাউজার+দিন — ব্যক্তিগত তথ্য রাখা হয় না, শুধু হ্যাশ
+    const day = new Date().toISOString().slice(0, 10);
+    const visitor = createHash("sha256")
+      .update(`${req.ip}|${req.get("user-agent") || ""}|${day}`)
+      .digest("hex")
+      .slice(0, 16);
+    if (mode === "demo") await demo.recordVisit({ path, country, region, city, visitor });
+    else
+      await rpc("record_site_visit", {
+        p_path: path,
+        p_country: country,
+        p_region: region,
+        p_city: city,
+        p_visitor: visitor,
+      });
+    res.json({ ok: true });
+  }),
+);
+app.get(
+  "/api/admin/analytics",
+  wrap(async (req, res) => {
+    const user = await freshUser(await auth(req, res, true));
+    // R49: মেইন অ্যাডমিন সবসময়; সহ-অ্যাডমিনের "ভিজিটর অ্যানালিটিক্স" অনুমতি লাগে
+    if (!canDo(user, "analytics.view"))
+      throw new AppError("এই কাজের অনুমতি তোমার অ্যাকাউন্টে নেই।", 403);
+    // R50: দিনভিত্তিক চার্টের রেঞ্জ (?from=YYYY-MM-DD&to=YYYY-MM-DD) — না দিলে শেষ ১৪ দিন
+    const dateQ = (v) =>
+      typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+    const from = dateQ(req.query.from);
+    const to = dateQ(req.query.to);
+    res.json(
+      mode === "demo"
+        ? await demo.analytics(user, { from, to })
+        : await rpc("site_analytics", { p_from: from, p_to: to }, user),
+    );
   }),
 );
 app.get(
@@ -1029,6 +1101,8 @@ function validateMutation(action, data) {
     return z.object({ id: idSchema }).parse(data);
   if (action === "section.save") return sectionSchema.parse(data);
   if (action === "album.save") return albumSchema.parse(data);
+  if (action === "album.media.add") return albumMediaAddSchema.parse(data);
+  if (action === "album.media.remove") return albumMediaRemoveSchema.parse(data);
   if (action === "album.delete") return z.object({ id: idSchema }).parse(data);
   if (action === "schedule.save") return scheduleSchema.parse(data);
   if (action === "account.save") return accountSchema.parse(data);

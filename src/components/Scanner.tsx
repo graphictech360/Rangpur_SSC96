@@ -109,9 +109,20 @@ export default function Scanner({
     setCameraOn(true);
     try {
       const { BrowserQRCodeReader } = await import("@zxing/browser");
-      reader.current = new BrowserQRCodeReader();
+      const { DecodeHintType } = await import("@zxing/library");
+      // R46: TRY_HARDER — ছোট/কম আলোয় থাকা QR-ও বেশি চেষ্টা করে পড়ে
+      const hints = new Map([[DecodeHintType.TRY_HARDER, true]]);
+      reader.current = new BrowserQRCodeReader(hints);
       controls.current = await reader.current.decodeFromConstraints(
-        { video: { facingMode: { ideal: "environment" } }, audio: false },
+        {
+          // R46: হাই-রেজুলেশন ক্যামেরা চাওয়া হয় — ফোনের স্ক্রিনের QR-ও পরিষ্কার ধরা পড়ে
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        },
         video.current!,
         (code, _, ctl) => {
           if (code && !scanBusy.current) {
@@ -133,7 +144,9 @@ export default function Scanner({
     const url = URL.createObjectURL(file);
     try {
       const { BrowserQRCodeReader } = await import("@zxing/browser");
-      const r = new BrowserQRCodeReader();
+      const { DecodeHintType } = await import("@zxing/library");
+      const hints = new Map([[DecodeHintType.TRY_HARDER, true]]);
+      const r = new BrowserQRCodeReader(hints);
       const code = await r.decodeFromImageUrl(url);
       await checkin(code.getText());
     } catch {

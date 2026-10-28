@@ -160,6 +160,16 @@ export const albumSchema = z.object({
   active: z.boolean().default(true),
   order: z.coerce.number().int().min(0).max(999),
 });
+/** R49: বিদ্যমান অ্যালবামে ছবি/ভিডিও যোগ — সার্ভার সর্বশেষ তালিকার সাথে মার্জ করে */
+export const albumMediaAddSchema = z.object({
+  id: z.string().uuid(),
+  media: z.array(albumMediaSchema).min(1).max(40),
+});
+/** R49: অ্যালবাম থেকে নির্দিষ্ট ছবি/ভিডিও বাদ — URL ধরে, বাকি সব অক্ষত থাকে */
+export const albumMediaRemoveSchema = z.object({
+  id: z.string().uuid(),
+  urls: z.array(z.string().min(5).max(2_600_000)).min(1).max(40),
+});
 export const sectionSchema = z.object({
   id: z.string().uuid().optional(),
   key: z
@@ -238,6 +248,7 @@ export const PERMISSION_KEYS = [
   "devices",
   "expenses",
   "donations",
+  "analytics", // R49: ভিজিটর অ্যানালিটিক্স দেখার অনুমতি
 ];
 // কোন অ্যাকশন করতে কোন অনুমতি লাগে (মেইন অ্যাডমিনের সব অনুমতি আছে)
 export const ACTION_PERMISSIONS = {
@@ -246,6 +257,11 @@ export const ACTION_PERMISSIONS = {
   "section.save": ["content"],
   "album.save": ["content"],
   "album.delete": ["content"],
+  // R49: অ্যালবামের ছবি যোগ/বাদ — সার্ভারে মার্জ হয়, তাই দুই অ্যাডমিন একসাথে কাজ করলেও কারও ছবি হারায় না
+  "album.media.add": ["content"],
+  "album.media.remove": ["content"],
+  // R49: ভিজিটর অ্যানালিটিক্স দেখা (মেইন অ্যাডমিন সবসময়; সহ-অ্যাডমিনের অনুমতি লাগে)
+  "analytics.view": ["analytics"],
   "section.delete": ["content"],
   "schedule.save": ["schedule"],
   "schedule.delete": ["schedule"],

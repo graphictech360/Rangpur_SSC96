@@ -214,7 +214,7 @@ export default function NotificationBell({
             {recent.map((r) => (
               <li
                 key={r.id}
-                className={seenAt && r.createdAt > seenAt ? "notif-new" : ""}
+                className={!seenAt || r.createdAt > seenAt ? "notif-new" : ""}
               >
                 <button
                   type="button"

@@ -30,6 +30,8 @@ import InstallPrompt from "./InstallPrompt";
 interface Props {
   site: Site;
   onTicket: (key?: string) => void;
+  /** R51: নিবন্ধনের উত্তর (অনুমোদন/প্রত্যাখ্যান) এসেছে — আইকনে লাল ডট */
+  ticketAlert?: boolean;
   navigate: (path: string) => void;
 }
 /**
@@ -44,7 +46,62 @@ export function parseImageList(value: string) {
     .filter(Boolean)
     .slice(0, 12); // R32: ব্যানারে ১২টি পর্যন্ত ছবি ঘুরে ঘুরে দেখা যায়
 }
-export default function Home({ site, onTicket, navigate }: Props) {
+/* R55: অ্যাডমিন-দেওয়া যেকোনো নামের ক্রিয়েটিভ হিরো-শিরোনাম — ব্র্যান্ড রঙে।
+   নিয়ম: সংখ্যা (৯৬, 2027...) কমলা + হাতে-আঁকা হলুদ দাগ; "উদ্ধৃত" অংশ সেরিফ-ইটালিক,
+   পেছনে হলুদ মার্কার-হাইলাইট (উদ্ধৃতিচিহ্ন নিজে দেখানো হয় না); প্রথম শব্দের পাশে
+   ঘূর্ণমান ✳; শব্দগুলো একের পর এক ভেসে আসে; শেষে কমলা ফুলস্টপ। */
+function CustomTitle({ name }: { name: string }) {
+  const tokens: { w: string; q: boolean }[] = [];
+  let inQ = false;
+  for (const raw of name.trim().split(/\s+/)) {
+    let w = raw;
+    let opens = false;
+    let closes = false;
+    if (/^["\u201C]/.test(w)) {
+      opens = true;
+      w = w.slice(1);
+    }
+    if (/["\u201D]$/.test(w)) {
+      closes = true;
+      w = w.slice(0, -1);
+    }
+    if (opens) inQ = true;
+    if (w) tokens.push({ w, q: inQ });
+    if (closes) inQ = false;
+  }
+  const isNum = (w: string) => /^[0-9\u09E6-\u09EF]{2,4}$/.test(w);
+  const isAmp = (w: string) => w === "&" || w === "ও";
+  // ✳ বসে প্রথম সাধারণ শব্দের পাশে (সংখ্যা/& নয়); না পেলে একেবারে প্রথম শব্দে
+  const sparkAt = (() => {
+    const i = tokens.findIndex((t) => !isNum(t.w) && !isAmp(t.w) && !t.q);
+    return i === -1 ? 0 : i;
+  })();
+  // ফুলস্টপ বসবে কি না — উদ্ধৃতিচিহ্ন বাদ দিয়ে দৃশ্যমান শেষ শব্দ ধরে
+  const lastWord = tokens.length ? tokens[tokens.length - 1].w : "";
+  const endsPunct = /[.!?\u0964\u09F7]$/.test(lastWord);
+  return (
+    <span className="custom-title ct">
+      {tokens.map((t, i) => (
+        <span
+          key={i}
+          className={`ct-word${isNum(t.w) ? " ct-num" : ""}${t.q ? " ct-quote" : ""}${isAmp(t.w) ? " ct-amp" : ""}`}
+          style={{ animationDelay: `${(0.09 * i + 0.06).toFixed(2)}s` }}
+        >
+          {t.w}
+          {isNum(t.w) && (
+            <svg viewBox="0 0 250 20" aria-hidden="true">
+              <path d="M4 13Q125-2 246 12M35 19Q140 8 219 18" />
+            </svg>
+          )}
+          {i === sparkAt && <span className="ct-spark">{"\u2733"}</span>}
+        </span>
+      ))}
+      {!endsPunct && <span className="ct-period">.</span>}
+    </span>
+  );
+}
+
+export default function Home({ site, onTicket, navigate, ticketAlert }: Props) {
   const [menu, setMenu] = useState(false);
   const [period, setPeriod] = useState("সব");
   useReveal([site, period]);
@@ -185,9 +242,16 @@ export default function Home({ site, onTicket, navigate }: Props) {
               <button
                 className="button button-ghost ticket-nav"
                 onClick={() => onTicket()}
+                title={
+                  ticketAlert
+                    ? "তোমার নিবন্ধনের উত্তর এসেছে — টিকিট খুলে দেখো!"
+                    : undefined
+                }
               >
                 <Ticket size={17} />
                 <span>{ticketItem.label || "আমার টিকিট"}</span>
+                {/* R51: উত্তর এলে লাল ডট — <i> ব্যবহার, কারণ মোবাইলে > span লুকানো থাকে */}
+                {ticketAlert && <i className="ticket-alert-dot" aria-label="নতুন খবর" />}
               </button>
             )}
             <button
@@ -205,11 +269,14 @@ export default function Home({ site, onTicket, navigate }: Props) {
         {hero && (
           <section className="hero container" aria-label={site.event.name}>
             <div className="hero-copy">
-              <div className="hero-eyebrow">
-                <span className="live-dot" />
-                {hero.subtitle}
-                <span className="tiny-line" />
-              </div>
+              {/* R55: সাবটাইটেল খালি রাখলে ছোট লাইনটি (ডট+দাগসহ) একেবারেই দেখা যায় না */}
+              {!!hero.subtitle.trim() && (
+                <div className="hero-eyebrow">
+                  <span className="live-dot" />
+                  {hero.subtitle}
+                  <span className="tiny-line" />
+                </div>
+              )}
               <h1 className="hero-title" aria-label={site.event.name}>
                 {site.event.name === "Rangpur SSC 96 Festival" ? (
                   <>
@@ -230,7 +297,7 @@ export default function Home({ site, onTicket, navigate }: Props) {
                     </span>
                   </>
                 ) : (
-                  <span className="custom-title">{site.event.name}</span>
+                  <CustomTitle name={site.event.name} />
                 )}
               </h1>
               <h2 className="hero-subtitle">
@@ -659,6 +726,9 @@ export default function Home({ site, onTicket, navigate }: Props) {
                 "faq",
                 // R23: স্মৃতি-সেকশনের লেখা MemoryWall-ই দেখায় — এখানে আবার নয়
                 "past_events",
+                // R56-ফিক্স: QR-পেমেন্ট সেকশন শুধু নিবন্ধন ফর্মের পেমেন্ট ধাপে —
+                // হোমপেজের কাস্টম-সেকশন হিসেবে কখনো নয়
+                "payment_qr",
               ].includes(s.key) &&
               !s.key.startsWith("faq_") &&
               // R43: ফি-কার্ডের লেখা ফি-সেকশনেই দেখানো হয় — এখানে আবার নয়

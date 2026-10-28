@@ -35,6 +35,7 @@ export const PERMISSION_LABELS: [string, string][] = [
   ["devices", "স্টাফ ডিভাইস"],
   ["expenses", "খরচের খাতা"],
   ["donations", "বন্ধুদের ঐচ্ছিক অনুদান"],
+  ["analytics", "ভিজিটর অ্যানালিটিক্স"], // R49
 ];
 
 interface TeamForm {
